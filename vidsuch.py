@@ -1,363 +1,269 @@
 # -*- coding: utf-8 -*-
 '''
 Created on 2018-06-01
-
 @author: rg
-
 VidSuch.py mit pyqt5
-ermöglicht das suchen von videos mit 1 bis 2 Suchbegriffen
-
-
+ermöglicht das Suchen von Videos mit 1 bis 2 Suchbegriffen
 '''
 
 # import PyQt5.QtWidgets # Import the PyQt5 module we'll need
 from PyQt5.QtWidgets import (QMainWindow, 
-                             QTextEdit, 
-                             QTableWidget,
+                             QLabel,
                              QTableWidgetItem,
-#                             QComboBox,
+                             QAbstractItemView,
                              QHeaderView,
-#                             QFileDialog,
-                             QLabel, 
                              QLineEdit, 
                              QPushButton,
-#                             QRadioButton,
-#                             QCheckBox,
                              QWidget,
                              QHBoxLayout, 
                              QVBoxLayout, 
-#                             QGroupBox,
-#                             QButtonGroup,
                              QApplication, 
                              QMessageBox)
 
-from PyQt5.QtCore import QProcess, QObject
-from PyQt5.QtGui import QTextCursor, QColor, QIcon
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
+from PyQt5.QtGui import QIcon
 
 from math import log as logarit
-from timeit import default_timer as timer
-import datetime
-import logger
+from datetime import datetime
 import sys
-import shutil
 import os
+import time
 
-import liste as liste  # hält eine Liste der umzuwandelnden Dateien
+# das fenster wurde mit dem qtdesigner entworfen und per pyuic5 konvertiert
+import VidSuchUI
 
-# from subprocess import Popen, CREATE_NEW_CONSOLE
+stopFlag = False
 
-import XCodeUI # Hauptfenster; mit pyuic aus der UI-Datei konvertiert
+vpath = "Y:\\video\\"
 
-class tsEintrag:
-    def __init__(self, nr, fullpath, name, status):
-        self.nr = nr
-        self.fullpath = fullpath
-        self.name = name
-        self.status = status
+# --------------------------------------------------------------------------------
+# Worker class
+# --------------------------------------------------------------------------------
+class Worker(QObject):
+    '''
+    Worker thread
+    '''
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(list)
+    progress = pyqtSignal(str)
     
-    def __str__(self):
-        return "{0}: {1} mit Status {2}".format(self.nr, self.fullpath, self.status)
+    global stopFlag
+    stopFlag = False
 
-    def setStatus(self, status):
-        self.status = status
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
-class XCodeApp(QMainWindow, XCodeUI.Ui_MainWindow):
-    def __init__(self):               
+    @pyqtSlot()
+    def startp(self):
+        # print("Thread started")
+        pass
+
+    @pyqtSlot(str, str, str)
+    def findewas(self, such, such2, vpath):
+        '''
+        Findet Videos nach Stichworten
+        sucht unabhängig von Groß/klein-schreibung
+        enthält der erste suchbegriff "such" eine Blank, so wird auch nach "_" an dieser Stelle gesucht
+        :param such:        Suchbegriff 1
+        :param such2:       Suchbegriff 2
+        :param vpath        zu durchsuchender video-Pfad
+        :return:            Liste mit den vollen Namen der gefundenen Videos als Signal "result"
+        '''
+        global stopFlag
+
+        such = such.lower()
+        such2 = None if such2 == "" else such2
+        repl_mode = False   # repl_mode wird nur benötigt, wenn such ein Blank oder "_" enthält
+        if " " in such or "_" in such:
+            such_ = such.replace(" ", "_")  # such1 = such, aber komplett mit _ statt Blank
+            suchb = such.replace("_", " ")  # suchb wie such, aber komplett mit Blank (kein _)
+            repl_mode = True
+        if such2 is None:
+            doSuch2 = False
+        else:
+            such2 = such2.lower()
+            doSuch2 = True
+        lst = []
+        for root, dirs, files in os.walk(vpath):
+            if stopFlag:
+                break
+            for f in files:
+                fl = f.lower()
+                x = None
+                if repl_mode:
+                    if suchb in fl or such_ in fl:
+                        if doSuch2:
+                            if such2 in fl:
+                                x = os.path.join(root, f)
+                        else:
+                            x = os.path.join(root, f)
+                else:
+                    if such in fl:
+                        if doSuch2:
+                            if such2 in fl:
+                                x = os.path.join(root, f)
+                        else:
+                            x = os.path.join(root, f)
+                if x is None:
+                    continue
+                else:
+                    lst.append(x)
+                    # self.worker.progress.emit(x)
+                    self.progress.emit(x)
+        if not stopFlag:
+            self.result.emit(lst)
+        return
+        
+
+# --------------------------------------------------------------------------------
+# VidSuchApp class
+# --------------------------------------------------------------------------------
+class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
+    suchAnfrage = pyqtSignal(str, str, str)
+
+    def __init__(self, app):
         super(self.__class__, self).__init__()
         
-        self.setupUi(self)  # This is defined in XCodeUI.py file automatically
+        self.setupUi(self)  # This is defined in VidSuchUI.py file automatically
                             # It sets up layout and widgets that are defined
         # Instanz-Variablen
-        self.process = None
-        self.processkilled = False
-        self.quelle  = "C:\\ts\\"
-        self.ziel    = "E:\\Filme\\schnitt\\"
-        self.logpath = "E:\\Filme\\log\\"
-        self.tsliste = liste.liste()  # Liste der ts-Objekte
-        self.running = False    # im Prozess aktiv
-        self.stopNext = False   # HalteSignal
-#        self.Zeile = 0         # aktuelle Zeile (0 - (n-1))
-        self.incr = 0.0         # Increment des Procbar1
-        self.pbarpos = 0        # Pos des PorcBar1
-        self.prstart = 0        # start timer des prozesses
-        self.prend = 0          # end timer
-        self.ts_von = ""        # aktuelle quelle
-        self.ts_nach = ""       # aktuelles ziel
-        self.lastcmd = ""       # letzter cmd, der im Prozess verarbeitet wurde
+        self.vpath   = "Y:\\video\\"
+        self.app = app
+        self.worker = None
 
         # Icon versorgen
         scriptDir = os.path.dirname(os.path.realpath(__file__))
-        self.setWindowIcon(QIcon(scriptDir + os.path.sep + 'XC.ico'))
+        self.setWindowIcon(QIcon(scriptDir + os.path.sep + 'VidSuch.ico'))
 
-        # Feintuning der Widgets
-        self.tbl_files.setHorizontalHeaderLabels(('Nr', 'Status', 'Datei'))
-        self.tbl_files.setAlternatingRowColors(True)
-        header = self.tbl_files.horizontalHeader()       
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.btn_suchen.setEnabled(False)
+        # btn_suchen.setEnabled(True)
+        self.le_such1.textChanged.connect(self.suchBtnAktivieren)
+
+        #self.lst_erg.setTextBackgroundColor(QColor("lightyellow"))
+        # self.lst_erg.setStyleSheet("background-color: lightyellow;")
+        self.lst_erg.setHorizontalHeaderLabels(('Video', 'Länge', 'Datum'))
+        self.lst_erg.setAlternatingRowColors(True)
+        header = self.lst_erg.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        # self.lst_erg.setSelectionMode(QAbstractItemView.NoSelection)
+        self.lst_erg.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.lst_erg.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.lst_erg.setRowCount(0)
+        self.lst_erg.setEnabled(False)
 
-        self.edit.setReadOnly(True)
-        # self.edit.LineWrapMode = QTextEdit.NoWrap
-        self.edit.setTextBackgroundColor (QColor("lightyellow"))
-        self.edit.setStyleSheet("background-color: lightyellow;")
-        # self.edit.width = 400
-        # self.edit.setAcceptRichText(True)
-        self.edit.setWindowTitle("Prozess-Ausgabe")
-        self.edit.setText("")
-        
-        self.led_pfad.setDisabled(True)
-        self.probar1.setValue(0)
-        self.probar2.setValue(0)
-                
         # connects
-        self.btn_ende.clicked.connect(self.progende)
-        self.btn_start.clicked.connect(self.convert)
+        self.btn_suchen.clicked.connect(self.suchen)
         
-        # Abschluss Init; laden der Daten
-        self.dt = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.log = logger.logFile(self.logpath + "XCode_"+ self.dt + ".log", TimeStamp=True, printout=False)
-
-        self.ladeFiles(self.quelle)
-        self.log.log("Umwandlung mit:")
-        self.log.log(ffmpegBefehl("{EingabeDatei}", "{AusgabeDatei}") + "\n")
-
-        if self.tsliste.size == 0:
-            reply = QMessageBox.information( self, "Hinweis",
-            "Es gibt im Order {0} keine ts-Dateien.\nNichts zu tun!".format(self.quelle))
-            return
-        else:
-            self.incr = 100.0 / self.tsliste.size
-        self.statusbar.showMessage("{0} Dateien geladen!".format(self.tsliste.size))
-
-    # Slots
-    def onReadData(self):
-        txt = self.process.readAllStandardOutput().data().decode('cp850')
-        self.edit.append(txt)
-        self.edit.moveCursor(QTextCursor.End)
-        # print("got data!")
-
-    def onFinished(self,  exitCode,  exitStatus):
-        self.prend = timer()
-        self.running = False
-        # print("Vorbei")
-        m, s = divmod(self.prend - self.prstart, 60)
-        h, m = divmod(m, 60)
-        time_str = "{0:02.0f}:{1:02.0f}:{2:02.0f}".format(h, m, s)     
-        Datei = self.tsliste.lastObj
+        self.statusMeldung("Ready")
+        self.warten(False)
+        self.proBar.setValue(0)
         
-        # print("Finished; exitCode={0}, exitStatus={1}".format(exitCode, exitStatus))
-        if exitStatus == 0:
-            if exitCode == 0:   # Abschluss-Verarbeitung, wenn alles gut gelaufen ist
-                qlen = os.stat(self.ts_von).st_size
-                try:
-                    zlen = os.stat(self.ts_nach).st_size
-                except:
-                    zlen = 0    
-                self.log.log("{0} --> {1} ({2:2.2f}%)".format(format_size(qlen), format_size(zlen), zlen / qlen * 100))
-                self.log.log("Dauer: {0}; ReturnCode: {1}".format(time_str, exitCode))
-                self.log.log("OK")
-                shutil.move(Datei.fullpath, Datei.fullpath + ".done")
-                Datei.setStatus("OK")
-            else:       # Abschluss-Verarbeitung bei Fehler
-                self.log.log("Fehler! ReturnCode: {0}".format(exitCode))
-                self.log.log("Letzter Befehl:\n{0}".format(self.lastcmd))
-                Datei.setStatus("Fehler ({0})".format(exitCode))
-        else:
-            Datei.setStatus("Fehler {0} / {1}".format(exitCode, exitStatus))
-            if self.processkilled:
-                self.log.log("Harter Abbruch! exitCode={0}, exitStatus={1}".format(exitCode, exitStatus))
-                return  # keine weitere Verarbeitung
-            else:
-                self.log.log("Fehler! exitCode={0}, exitStatus={1}".format(exitCode, exitStatus))
+        #  Thread einrichten, starten und im idle-mode lassen
+        self.thread = QThread()
+        self.worker = Worker()      # result=self.ergebnis_ausgeben
+        self.thread.started.connect(self.worker.startp)
+        self.worker.moveToThread(self.thread)
+        self.worker.result.connect(self.ergebnis_ausgeben)
+        # self.worker.finished.connect(self.thread_complete)
+        self.worker.progress.connect(self.statusMeldung)
+        self.suchAnfrage.connect(self.worker.findewas)
+        self.lst_erg.cellActivated.connect(self.videoStart)
+        self.thread.start()
 
-        # Abschluss-Arbeiten des aktuellen Prozesses
-        self.edit.setText(" ")
-        self.refreshTable(False)     
-        self.process = None
-        self.probar2.setRange(0,1)  # stoppt hin-her
-            
-        # weitermachen oder aufhören
-        if self.stopNext:   # sofort aufhören
-                self.ende_verarbeitung()
-                return            
-        if self.tsliste.findNext() is None:
-            self.ende_verarbeitung()    # fertig
-        else:
-            self.convert()              # nächste Datei
+    def buttonflip(self, txt):
+        self.btn_suchen.setText(txt)
 
-    def closeEvent(self, event):
-        if self.running:
-            if self.stopNext:
-                reply = QMessageBox.warning(self, "Achtung!",
-                                             "Laufende Konvertierung abbrechen?\nDas macht die neu erzeugte Ausgabe unbrauchbar!",
-                                             QMessageBox.Yes | QMessageBox.No,
-                                             QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    # Abbrechen!
-                    self.processkilled = True
-                    self.ende_verarbeitung()
-                    event.accept()
-                else:
-                    self.processkilled = False
-                    event.ignore()  # hier kein weiterer close (wegen self.running)!
+    def suchBtnAktivieren(self):       
+        self.btn_suchen.setEnabled(self.le_such1.text().strip() > "")
+
+    @pyqtSlot()
+    def suchen(self):   # slot-Funktion für den suchen button
+        if self.btn_suchen.text == "&Stop":
+            if self.stop_thread_msg():  # Abbrechen!
+                stopFlag = True
+                self.buttonflip("&Start")
+                self.statusMeldung("Suche abgebrochen!")
         else:
-            event.accept()  # OK, Schluss jetzt
+            # starten
+            suchbegriff1 = self.le_such1.text().strip()
+            if suchbegriff1 == "":
+                beepSound()
+                return
+            suchbegriff2 = self.le_such2.text().strip()
+            suchbegriff2 = None if suchbegriff2 == "" else suchbegriff2
+            self.buttonflip("&Stop")
+            self.statusMeldung("Suche läuft ...")
+            self.warten(True)
+            self.lst_erg.clearContents()
+            self.lst_erg.setRowCount(0)
+            self.lst_erg.setEnabled(False)
+            self.suchAnfrage.emit(suchbegriff1, suchbegriff2, vpath)
+        return
+
+    def stop_thread_msg(self):
+        reply = QMessageBox.warning(self, "Achtung!",
+                                    "Laufende Suche abbrechen?",
+                                    QMessageBox.Yes | QMessageBox.No,
+                                    QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            return True     # Abbrechen!
+        else:
+            return False    # NICHT Abbrechen!
+
+
+    @pyqtSlot(list)
+    def ergebnis_ausgeben(self, liste):
+        self.refreshTable(liste)
+        self.warten(False)
+        self.statusMeldung("Suche beendet! Es wurden {} Filme gefunden.".format(len(liste)))
+        self.buttonflip("&Suchen")
+
+    def refreshTable(self, liste):
+        # das Table-widget füllen
+        self.lst_erg.clearContents()
+        self.lst_erg.setRowCount(0)
+        nr = 0
+        for vid in liste:
+            # weitere dateieigenschaften lesen
+            vlen = format_size(os.stat(vid).st_size)
+            vdat = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.stat(vid).st_ctime))
+            # liste aufbauen
+            self.lst_erg.insertRow(nr)
+            self.lst_erg.setItem(nr, 0, QTableWidgetItem(str(vid)))
+            self.lst_erg.setItem(nr, 1, QTableWidgetItem(str(vlen)))
+            self.lst_erg.setItem(nr, 2, QTableWidgetItem(str(vdat)))
+            nr += 1
+        self.lst_erg.selectRow(0)
+        self.lst_erg.setEnabled(True)
+
+    def warten(self, anaus):
+        if anaus:
+            self.proBar.setRange(0,0)
+        else:
+            self.proBar.setRange(0,100)
 
     # Funktionen
-    def ladeFiles(self, ts_pfad):     # lädt die ts-Files
-        # Liste der ts-files laden
-        i = 0
-        for entry in os.scandir(ts_pfad):
-            if entry.is_file():
-                if entry.name[-3:] == ".ts":
-                    i += 1
-                    fullpath = os.path.join(ts_pfad, entry.name)
-                    tse = tsEintrag(i, fullpath, entry.name, "waiting...  ")
-                    self.tsliste.append(tse)
-                    self.log.log("Lade: {0:2}: {1}".format(i, entry.name))
-        self.tsliste.findFirst()
-        self.refreshTable(True)
-        return self.tsliste.size
+    @pyqtSlot(str)
+    def statusMeldung(self, meldung):
+        self.statusbar.showMessage(meldung)
 
-    def refreshTable(self, neuaufbau):
-        # das Table-widget füllen
-        if neuaufbau:
-            self.tbl_files.setRowCount(0)
-        for ts in self.tsliste.liste:
-            # print(ts)
-            # direkte Benutzung der tsliste, ohne die Werte von lastPos und lastObj zu verändern
-            nr = ts.nr - 1
-            if neuaufbau:
-                self.tbl_files.insertRow(nr)
-            self.tbl_files.setItem(nr, 0, QTableWidgetItem(str(ts.nr)))
-            self.tbl_files.setItem(nr, 1, QTableWidgetItem(ts.status))
-            self.tbl_files.setItem(nr, 2, QTableWidgetItem(ts.name))
-        self.tbl_files.selectRow(self.tsliste.lastPos)
-
-    def convert(self):
-        '''
-        konvertiert eine ts-Datei über einen separaten Prozess
-        '''
-        # GUI anpassen
-        self.pbarpos += self.incr
-        self.probar1.setValue(self.pbarpos)
-        self.probar2.setRange(0,0)  # start hin-her
-        # self.probar2.setValue(0)
-        self.btn_start.setEnabled(False)
-
-        row = self.tsliste.lastPos
-        Datei = self.tsliste.lastObj
-            
-        Datei.setStatus("running...")
-        self.refreshTable(False)
-        self.tbl_files.selectRow(row)
-        self.ts_nach = self.ziel + Datei.name[:-3] + ".mkv"
-        self.ts_von = Datei.fullpath
-        self.log.log("\nStart Konvertierung von {0} . . .".format(self.ts_von))
-
-        # cmd montieren
-        self.lastcmd = ffmpegBefehl(self.ts_von, self.ts_nach)
-        #self.log.log("ffmpeg Aufruf: {0}".format(cmd))
-        self.statusbar.showMessage("Umwandlung {0} -> {1}".format(self.ts_von, self.ts_nach))
-        self.prstart = timer()
-
-        # Prozess starten
-        self.running = True
-        self.process=QProcess()
-        self.process.finished.connect(self.onFinished)
-        self.process.setProcessChannelMode(QProcess.MergedChannels)
-        self.process.readyReadStandardOutput.connect(self.onReadData)        
-        self.process.start(self.lastcmd)
-
-    def progende(self):     # Ende Proc mit Nachfrage
-        if self.running:
-            reply = QMessageBox.question( self, "Nachfrage",
-            "Ablauf abbrechen?\nDas wird nach dem Ende der aktuellen Konvertierung geschehen!",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No)
-
-            if reply == QMessageBox.Yes:
-                self.stopNext = True
-                self.statusbar.showMessage("Die Konverierung endet nach dem aktuellen Porzess!")
-                self.btn_ende.setText("Abbruch angefordert!")
-                self.btn_ende.setDisabled(True)
-        else:
-            self.ende_verarbeitung()
-        
-    def ende_verarbeitung(self):
-        self.tbl_files.selectRow(-1)
-        self.log.log("-" * 80)
-        self.running = False
-        self.statusbar.showMessage("Verarbeitung beendet!")
-        if self.btn_start.isEnabled():
-            self.log.log("Nichts getan!")
-        else:
-            if self.processkilled:
-                self.process.kill()
-                self.process.waitForFinished(5000)
-                if os.path.isfile(self.ts_nach):    #die defekte Datei löschen
-                    try:  # versuchen, die kaputte *.mkv"-datei zu löschen
-                        os.remove(self.ts_nach)
-                    except:
-                        QMessageBox.information(self, "Achtung!",
-                                                "Die defekte Datei \n{0}\nkonnte NICHT gelöscht werden!".format(
-                                                    self.ts_nach))
-                        self.log.log("Defekte Zieldatei [{0}] konnte NICHT gelöscht werden!")
-                    else:
-                        self.log.log("Defekte Zieldatei wurde gelöscht!")
-                self.log.log("Harter Abbruch!")
-                txt = "Harter Abbruch!"
-            elif self.stopNext:
-                txt = "Die Verarbeitung wurde nach Anforderung vorzeitig beendet!"
-                self.log.log("Ende nach Abbruch!" )
-            else:
-                txt = "Programm-Ende!"
-                self.log.log("Ende!")
-            erg, isOK = self.findeErgebnis()
-            if isOK:
-                QMessageBox.information(self, "JobEnde", txt + "\n" + erg)
-            else:
-                if self.processkilled:
-                    pass
-                else:
-                    QMessageBox.warning(self, "JobEnde", txt + "\n" + erg)
-            self.log.log(erg)
-        self.log.close()
-        self.running = False
-        self.close()
-
-    def findeErgebnis(self):
-        wait = 0
-        ok = 0
-        err = 0
-        for ts in self.tsliste.liste:
-            if ts.status == "OK":
-                ok += 1
-            elif ts.status == "waiting...  ":
-                wait += 1
-            else:
-                err +=1
-        if (wait == 0) & (err == 0) & (ok > 0):
-            txt = "\nAlles OK!\n\nOK: {0}\n".format(ok) + "Fehler: {0}\n".format(err) + "Nicht bearbeitet: {0}\n".format(wait)
-            isOK = True
-        else:
-            txt = "\nErgebnis\n\nOK: {0}\n".format(ok) + "Fehler: {0}\n".format(err) + "Nicht bearbeitet: {0}\n".format(wait)
-            isOK = False
-        return (txt, isOK)
-
-
-def ffmpegBefehl(ts_von, ts_nach):
-        # das "&" stört im Aufruf, es muss maskiert werden
-#        von = ts_von.replace("&", "^&")
-#        nach = ts_nach.replace("&", "^&")
-#        cmd = "cmd /C c:\\ffmpeg\\bin\\ffmpeg -i "
-        cmd = "c:\\ffmpeg\\bin\\ffmpeg -i "
-        cmd = cmd + "\"{0}\" ".format(ts_von)
-        #cmd = cmd + ' -map 0:v -map 0:a:0 -c:v h264_nvenc -b:v 1200K -maxrate 1400K -bufsize:v 4000k -bf 2 -g 150 -i_qfactor 1.1 -b_qfactor 1.25 -qmin 1 -qmax 50 -f matroska '
-        cmd = cmd + ' -map 0 -c:v h264_nvenc -c:a copy -sn -b:v 1200K -maxrate 1400K -bufsize:v 4000k -bf 2 -g 150 -i_qfactor 1.1 -b_qfactor 1.25 -qmin 1 -qmax 50 -f matroska -y '
-        cmd = cmd + "\"{0}\"".format(ts_nach)
-        return cmd
+    @pyqtSlot(int, int)
+    def videoStart(self, row, col):
+        if col > 0 or row > self.lst_erg.rowCount():
+            return
+        vid = self.lst_erg.item(row, col).text()
+        try:
+            os.startfile(vid)
+        except:
+            self.statusMeldung("Fehler: Kann das Video [{}] nicht starten!".format(item.text()))
+            beepSound(self.app)
+        return
+#
+#   Allg Funktionen
+#
 
 def format_size(flen: int):
         """Human friendly file size"""
@@ -374,15 +280,11 @@ def format_size(flen: int):
         else: # flen == 0
             return ' 0 bytes'
 
+def beepSound(app):
+    app.beep()
 
-def main():
-    app = QApplication(sys.argv)  # A new instance of QApplication
-    form = XCodeApp()             # We set the form to be our ExampleApp (design)
-    if form.tsliste.size == 0:    # nix zu tun!
-        return
-    form.show()                   # Show the form
-    app.exec_()                   # and execute the app
-
-
-if __name__ == '__main__':        # if we're running file directly and not importing it
-    main()                        # run the main function
+if __name__ == '__main__':        
+    app = QApplication(sys.argv)
+    form = VidSuchApp(app)
+    form.show()
+    app.exec_()

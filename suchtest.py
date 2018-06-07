@@ -56,15 +56,17 @@ def findewas(such, such2, ausgabefkt):
                 lst.append(x)
     return lst
 
-such = "Inspector Barnaby"
-such2 = "Dame"
-# such2 = None
-print("Suche...", end=" ")
-erg = findewas(such, such2, None)
-print("Fertig")
+if __name__ == '__main__':
+    such = "Inspector Barnaby"
+    such2 = "Tanz"
+    # such2 = None
 
-if erg == []:
-    print("Nichts gefunden")
-else:
-    for f in erg:
-        print(f)
+    print("Suche...", end=" ")
+    erg = findewas(such, such2, None)
+    print("Fertig")
+
+    if erg == []:
+        print("Nichts gefunden")
+    else:
+        for f in erg:
+            print(f)
