@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QApplication, 
                              QMessageBox)
 
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, Qt
 from PyQt5.QtGui import QIcon
 
 from math import log as logarit
@@ -176,8 +176,16 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
     def buttonflip(self, txt):
         self.btn_suchen.setText(txt)
 
-    def suchBtnAktivieren(self):       
+    def suchBtnAktivieren(self):
         self.btn_suchen.setEnabled(self.le_such1.text().strip() > "")
+
+    # emuliert den default-key
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Return:
+            w = self.focusWidget()
+            if w == self.le_such1 or w == self.le_such2:
+                self.suchen()
+        return
 
     @pyqtSlot()
     def suchen(self):   # slot-Funktion für den suchen button
