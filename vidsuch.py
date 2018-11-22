@@ -73,7 +73,7 @@ class Worker(QObject):
         global stopFlag
 
         such = such.lower()
-        such2 = None if such2 == "" else such2
+        such2 = None if such2 == "" else such2.lower()
         repl_mode = False   # repl_mode wird nur benötigt, wenn such ein Blank oder "_" enthält
         if " " in such or "_" in such:
             such_ = such.replace(" ", "_")  # such1 = such, aber komplett mit _ statt Blank
@@ -82,8 +82,9 @@ class Worker(QObject):
         if such2 is None:
             doSuch2 = False
         else:
-            such2 = such2.lower()
             doSuch2 = True
+            such2_ = such2.replace(" ", "_")  # such2_ = such2, aber komplett mit _ statt Blank
+            such2b = such2.replace("_", " ")  # such2b wie such2, aber komplett mit Blank (kein _)
         lst = []
         for root, dirs, files in os.walk(vpath):
             if stopFlag:
@@ -94,14 +95,14 @@ class Worker(QObject):
                 if repl_mode:
                     if suchb in fl or such_ in fl:
                         if doSuch2:
-                            if such2 in fl:
+                            if such2 in fl or such2_ in fl or such2b in fl:
                                 x = os.path.join(root, f)
                         else:
                             x = os.path.join(root, f)
                 else:
                     if such in fl:
                         if doSuch2:
-                            if such2 in fl:
+                            if such2 in fl or such2_ in fl or such2b in fl:
                                 x = os.path.join(root, f)
                         else:
                             x = os.path.join(root, f)

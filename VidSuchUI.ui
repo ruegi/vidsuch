@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1088</width>
-    <height>660</height>
+    <width>1274</width>
+    <height>714</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -42,9 +42,9 @@ background: rgb(110, 104, 113)
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>120</y>
-      <width>1071</width>
-      <height>491</height>
+      <y>110</y>
+      <width>1251</width>
+      <height>521</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -185,12 +185,12 @@ background: rgb(110, 104, 113)
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>10</x>
       <y>5</y>
-      <width>1061</width>
+      <width>1251</width>
       <height>91</height>
      </rect>
     </property>
@@ -296,13 +296,77 @@ padding-right: 5 px;
      </item>
     </layout>
    </widget>
+   <widget class="QPushButton" name="btnRen">
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>640</y>
+      <width>150</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Umbenennen (F6)</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnPlay">
+    <property name="geometry">
+     <rect>
+      <x>530</x>
+      <y>640</y>
+      <width>150</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Film abspielen (Enter)</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnDel">
+    <property name="geometry">
+     <rect>
+      <x>974</x>
+      <y>640</y>
+      <width>150</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Film löschen (Entf)</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnEnde">
+    <property name="geometry">
+     <rect>
+      <x>1204</x>
+      <y>630</y>
+      <width>51</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="icon">
+     <iconset>
+      <normaloff>EndBut_neutral.png</normaloff>
+      <activeon>EndBut_focus.png</activeon>
+      <selectedon>EndBut_pushed.png</selectedon>EndBut_neutral.png</iconset>
+    </property>
+    <property name="iconSize">
+     <size>
+      <width>48</width>
+      <height>48</height>
+     </size>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1088</width>
+     <width>1274</width>
      <height>21</height>
     </rect>
    </property>

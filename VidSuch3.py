@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QInputDialog
 )
 
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
+from PyQt5.QtCore import QObject, Qt, pyqtSignal, pyqtSlot, QThread
 from PyQt5.QtGui import QIcon
 
 import sys
@@ -118,7 +118,7 @@ class Worker(QObject):
 # --------------------------------------------------------------------------------
 # VidSuchApp class
 # --------------------------------------------------------------------------------
-class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
+class VidSuchApp(QMainWindow, VidSuchUI3.Ui_MainWindow):
     suchAnfrage = pyqtSignal(str, str, str)
 
     def __init__(self, app):
@@ -145,8 +145,8 @@ class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
         self.lst_erg.setStyleSheet("background-color: lightyellow;")
 
         # connects
-        self.btndel.clicked.connect(self.delVideo)
-        self.btnren.clicked.connect(self.renVideo)
+        self.btnDel.clicked.connect(self.delVideo)
+        self.btnRen.clicked.connect(self.renVideo)
         self.btn_suchen.clicked.connect(self.suchen)
         
         self.statusMeldung("Ready")
@@ -172,11 +172,11 @@ class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
         if event.key() == Qt.Key_F6:
             if w == self.lst_erg :
                 self.renVideo()
-        elif event.key() == Qt.Key_Del:
+        elif event.key() == Qt.Key_Delete:
             if w == self.lst_erg :
                 self.delVideo()
         elif event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
-        	pass
+            self.suchen()
         return
 
     def buttonflip(self, txt):
@@ -205,7 +205,6 @@ class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
             self.warten(True)
             self.lst_erg.clear()
             self.suchAnfrage.emit(suchbegriff1, suchbegriff2, vpath)
-        return
 
     def stop_thread_msg(self):
         reply = QMessageBox.warning(self, "Achtung!",
@@ -248,7 +247,8 @@ class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
 
     @pyqtSlot()
     def delVideo(self):
-        fname = self.lst_erg.currentItem().text()		# kompletter DateiName
+        fname = self.lst_erg.currentItem()		# kompletter DateiName
+        # fname = item.text()
         if fname is None:
             return
         vidName = os.path.basename(fname)
@@ -265,9 +265,9 @@ class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
             except OSError as err:
                 self.statusMeldung("Fehler! ({})".format(err.strerror))
             finally:
-				# SuchErgebnis aktualisieren
-				self.suchen()
-				self.statusMeldung(
+                # SuchErgebnis aktualisieren
+                self.suchen()
+                self.statusMeldung(
                     "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
         else:
             self.statusMeldung("Löschen abgebrochen!".format(fname))
@@ -276,8 +276,10 @@ class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
     @pyqtSlot()
     def renVideo(self):
         # startet einen Dialog zur Erfassung des neuen VideoNamens
-        fname = self.lst_erg.currentItem().text()
-                if fname is None:
+        # item = self.lst_erg.currentItem().text()
+        # fname = item.text()
+        fname = self._getItemText(self.lst_erg.currentItem())
+        if fname is None:            
             return
         alterName = fname
         vidName = os.path.basename(fname)
@@ -292,12 +294,19 @@ class VidSuchApp(QMainWindow, VidSuchUI2.Ui_MainWindow):
             except OSError as err:
                 self.statusMeldung("Fehler! ({})".format(err.strerror))
             finally:
-            	// Anzeige aktualisieren
-            	self.suchen()
+                # Anzeige aktualisieren
+                self.suchen()
                 self.statusbar.showMessage("Video umbenannt in: {}".format(neuerName))
         return
 
 
+    def _getItemText(self, obj: object):
+        # gibt den im Objekt enthaltenen Text zurück oder None
+        if obj.type() == "Text":
+            return obj.text()
+        else:
+            print("Type ist: {}".obj.type())
+            return None
 
 #
 #   Allg Funktionen
