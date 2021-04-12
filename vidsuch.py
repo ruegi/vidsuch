@@ -1,40 +1,69 @@
+
 # -*- coding: utf-8 -*-
 '''
 Created on 2018-06-01
 @author: rg
 VidSuch.py mit pyqt5
 ermöglicht das Suchen von Videos mit 1 bis 2 Suchbegriffen
+Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
+            rg 2018-11-22
+Änderungen:
+2021-03-09  V6
+            neues Untermodul FilmDetails eingefügt
+            neuer Hotkey Ctrl+M, um eine Zwischenablage einzufügen
+            neuer Hotkey Ctrl+s, um einen Text zu splitten
+            Menü erzeugt für Doku der Hotkeys & About Dialog
+
 '''
 
+import sys
+import os
+
+# das soll die Importe aus dem Ordner FilmDetails mit einschließen...
+sys.path.append(r".\FilmDetails")
+
 # import PyQt5.QtWidgets # Import the PyQt5 module we'll need
-from PyQt5.QtWidgets import (QMainWindow, 
+from PyQt5.QtWidgets import (QMainWindow,
+    	                     QDialog,
                              QLabel,
                              QTableWidgetItem,
                              QAbstractItemView,
                              QHeaderView,
-                             QLineEdit, 
+                             QLineEdit,
                              QPushButton,
                              QWidget,
-                             QHBoxLayout, 
-                             QVBoxLayout, 
-                             QApplication, 
-                             QMessageBox)
+                             QHBoxLayout,
+                             QVBoxLayout,
+                             QApplication,
+                             QMessageBox,
+                             QInputDialog )
 
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, Qt
+from PyQt5.Qt import  QClipboard
 from PyQt5.QtGui import QIcon
 
 from math import log as logarit
 from datetime import datetime
-import sys
-import os
+
 import time
+# import filmAlyser
+import FilmDetails.FilmDetails as FD
+
+# Handle high resolution displays (thx 2 https://stackoverflow.com/questions/43904594/pyqt-adjusting-for-different-screen-resolution):
+if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
 # das fenster wurde mit dem qtdesigner entworfen und per pyuic5 konvertiert
 import VidSuchUI
-
 stopFlag = False
 
-vpath = "Y:\\video\\"
+class const:
+    vpath = "Y:\\video\\"
+    version = "6"
+    subversion = "2"
+    versiondate = "2021-04-11"
 
 # --------------------------------------------------------------------------------
 # Worker class
@@ -47,7 +76,7 @@ class Worker(QObject):
     error = pyqtSignal(tuple)
     result = pyqtSignal(list)
     progress = pyqtSignal(str)
-    
+
     global stopFlag
     stopFlag = False
 
@@ -115,7 +144,7 @@ class Worker(QObject):
         if not stopFlag:
             self.result.emit(lst)
         return
-        
+
 
 # --------------------------------------------------------------------------------
 # VidSuchApp class
@@ -125,13 +154,14 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
 
     def __init__(self, app):
         super(self.__class__, self).__init__()
-        
+
         self.setupUi(self)  # This is defined in VidSuchUI.py file automatically
                             # It sets up layout and widgets that are defined
         # Instanz-Variablen
-        self.vpath   = "Y:\\video\\"
+        self.vpath   = const.vpath
         self.app = app
         self.worker = None
+        self.delBasket = "__del"
 
         # Icon versorgen
         scriptDir = os.path.dirname(os.path.realpath(__file__))
@@ -157,11 +187,23 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
 
         # connects
         self.btn_suchen.clicked.connect(self.suchen)
-        
+        self.btnDel.clicked.connect(self.delVideo)
+        self.btnRen.clicked.connect(self.renVideo)
+        self.btnInfo.clicked.connect(self.videoInfo)
+        self.btnPlay.clicked.connect(lambda: self.videoStart(self.lst_erg.currentRow(),0))
+        self.btnLeer.clicked.connect(self.suchFeldLeer)
+        self.btnLeer2.clicked.connect(self.suchFeldLeer2)
+        self.btnEnde.clicked.connect(self.close)
+
+        self.actionEinfuegen.triggered.connect(self.suchFeldLeer2)
+        self.actionEnde.triggered.connect(self.close)
+        self.actionSplit.triggered.connect(self.suchFeldSplit)
+        self.actionAbout.triggered.connect(self.about)
+
         self.statusMeldung("Ready")
         self.warten(False)
         self.proBar.setValue(0)
-        
+
         #  Thread einrichten, starten und im idle-mode lassen
         self.thread = QThread()
         self.worker = Worker()      # result=self.ergebnis_ausgeben
@@ -182,11 +224,68 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
 
     # emuliert den default-key
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Return:
+        w = self.focusWidget()
+        modifiers = QApplication.keyboardModifiers()
+
+        if event.key() == Qt.Key_F6:
+            if w == self.lst_erg :
+                self.renVideo()
+        elif event.key() == Qt.Key_Delete:
+            if w == self.lst_erg :
+                self.delVideo()
+        elif event.key() == Qt.Key_Return:
             w = self.focusWidget()
             if w == self.le_such1 or w == self.le_such2:
                 self.suchen()
+            else:
+                self.videoStart(self.lst_erg.currentRow, 1)
+        elif event.key() == Qt.Key_F2:
+            self.videoInfo()
+        elif event.key() == Qt.Key_F4:  # Split Feld 1
+            self.suchFeldSplit()
+        elif event.key() == Qt.Key_F5:  # Paste, wie ctrl+m
+            self.suchFeldLeer2()
+        elif event.key() == Qt.Key_X:
+            # modifiers = QApplication.keyboardModifiers()
+            if modifiers == Qt.ControlModifier:
+                self.suchFeldLeer()        
+        elif event.key() == Qt.Key_M:       # ctrl+m, um die Zwischenablage einzufügen
+            if modifiers == Qt.ControlModifier:
+                self.suchFeldLeer2()        
+        elif event.key() == Qt.Key_S:       # ctrl+s, den Text in dem 1. Suchfeld zu splitten
+            if modifiers == Qt.ControlModifier:
+                self.suchFeldSplit()        
+
         return
+
+    @pyqtSlot()
+    def suchFeldLeer(self):
+        self.le_such1.setText("")
+        self.le_such2.setText("")
+        self.statusMeldung("")
+        self.le_such1.setFocus()
+
+    def suchFeldLeer2(self):
+        txt = QApplication.clipboard().text().strip()
+        if txt > "":
+            self.le_such1.setText(txt)                    
+        self.le_such2.setText("")
+        self.statusMeldung("")
+        self.le_such1.setFocus()
+    
+    def suchFeldSplit(self):
+        txt = self.le_such1.text()
+        # Cursorposition ermittlen
+        csrpos = self.le_such1.cursorPosition()
+        self.le_such1.setText(txt[0:csrpos])
+        self.le_such2.setText(txt[csrpos:])
+    
+    def about(self):        
+        txt = "VidSuch" + "\n" + "-"*50 + f"\nSucht in {const.vpath} nach Dateien" + "\n\n"
+        txt += f"Version: {const.version}.{const.subversion} vom {const.versiondate}\n" 
+        txt += "Autor: Michael Rüsweg-Gilbert"        
+        QMessageBox.about(self, "Über VidSuch", txt)
+                                    
 
     @pyqtSlot()
     def suchen(self):   # slot-Funktion für den suchen button
@@ -199,7 +298,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
             # starten
             suchbegriff1 = self.le_such1.text().strip()
             if suchbegriff1 == "":
-                beepSound()
+                # beepSound()
                 return
             suchbegriff2 = self.le_such2.text().strip()
             suchbegriff2 = None if suchbegriff2 == "" else suchbegriff2
@@ -209,7 +308,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
             self.lst_erg.clearContents()
             self.lst_erg.setRowCount(0)
             self.lst_erg.setEnabled(False)
-            self.suchAnfrage.emit(suchbegriff1, suchbegriff2, vpath)
+            self.suchAnfrage.emit(suchbegriff1, suchbegriff2, const.vpath)
         return
 
     def stop_thread_msg(self):
@@ -270,6 +369,84 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
             self.statusMeldung("Fehler: Kann das Video [{}] nicht starten!".format(item.text()))
             beepSound(self.app)
         return
+
+    # -------------------------------------------------
+    # Neu 2020-02-04
+    # -------------------------------------------------
+    @pyqtSlot()
+    def videoInfo(self):
+        fname = self._getCurrentVideo()		# kompletter DateiName
+        # fname = item.text()
+        if fname is None:
+            return
+        # dialog = QDialog()
+        # dialog.ui = FD.mainApp(fname)
+        # dialog.exec_()
+        # dialog.show()           
+        FD.DlgMain(fname)
+
+    @pyqtSlot()
+    def delVideo(self):
+        fname = self._getCurrentVideo()		# kompletter DateiName
+        # fname = item.text()
+        if fname is None:
+            return
+        vidName = os.path.basename(fname)
+        reply = QMessageBox.question(self, "Wirklich?",
+                                     "Film [{0}] aus dem Archiv löschen?\n\nKeine Panik!\n".format(fname) +
+                                     "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
+                                         self.vpath + os.sep + self.delBasket),
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            delVideo = fname
+            delTarget = self.vpath + os.sep + self.delBasket + os.sep + vidName
+            try:
+                os.rename(delVideo, delTarget)
+            except OSError as err:
+                self.statusMeldung("Fehler! ({})".format(err.strerror))
+            finally:
+                # SuchErgebnis aktualisieren
+                self.suchen()
+                self.statusMeldung(
+                    "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
+        else:
+            self.statusMeldung("Löschen abgebrochen!".format(fname))
+        return
+
+    @pyqtSlot()
+    def renVideo(self):
+        # startet einen Dialog zur Erfassung des neuen VideoNamens
+        #
+        # item = self.lst_erg.currentItem().text()
+        # fname = item.text()
+        # fname = self._getItemText(self.lst_erg.currentItem())
+        fname = self._getCurrentVideo()		# kompletter DateiName
+        if fname is None:
+            return
+        alterName = fname
+        vidName = os.path.basename(fname)
+        pfad = os.path.dirname(fname)
+        neuerName, ok = QInputDialog.getText(self, 'Film im Prep-Ordner umbenennen', 'Neuer Name:',
+                                        QLineEdit.Normal, vidName)
+        if ok and not (neuerName == ''):
+            neuerFullName = pfad + os.sep + neuerName
+            alterFullName = pfad + os.sep + vidName
+            try:
+                os.rename(alterFullName, neuerFullName)
+            except OSError as err:
+                self.statusMeldung("Fehler! ({})".format(err.strerror))
+            finally:
+                # Anzeige aktualisieren
+                self.suchen()
+                self.statusbar.showMessage("Video umbenannt in: {}".format(neuerName))
+        return
+
+    def _getCurrentVideo(self):
+        row = self.lst_erg.currentRow()
+        if row > self.lst_erg.rowCount():
+            return None
+        vid = self.lst_erg.item(row, 0).text()
+        return vid
 #
 #   Allg Funktionen
 #
@@ -292,7 +469,7 @@ def format_size(flen: int):
 def beepSound(app):
     app.beep()
 
-if __name__ == '__main__':        
+if __name__ == '__main__':
     app = QApplication(sys.argv)
     form = VidSuchApp(app)
     form.show()

@@ -73,9 +73,10 @@ def openlog(logName=None, TimeStamp=False, printout=True, replace=True):
     """
     Eröffnet das Logging, indem eine Instanz eines Log-Objekts erzeugt
     und zurückgegeben wird.
-    :param logName: Name der LogDatei (obligatorisch)
+    :param  logName:   Name der LogDatei (optional: default = "logger.py_{Datum&Zeit}.log)
+                        (die Datum&Zeit-Angabe im Namen wird nur ergänzt, wenn TimeStamp=True ist)
             TimeStamp: boolean  (optional; default = False)
-                        bestimmt, ob jede Zeile zu beginn einen Zeitstempel enhält
+                        bestimmt, ob der DateiNamen und jede Zeile zu Beginn einen Zeitstempel enhält
         :return Referenz auf ein Log-Objekt
     """
     if logName is None:
