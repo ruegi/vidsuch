@@ -65,8 +65,7 @@ class Ui_MainWindow(object):
         self.lst_erg.viewport().setProperty("cursor", QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.lst_erg.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.lst_erg.setAutoFillBackground(True)
-        self.lst_erg.setStyleSheet("background-color:   qconicalgradient(cx:0, cy:0, angle:135, stop:0 rgba(255, 255, 0, 69), stop:0.375 rgba(255, 255, 0, 69), stop:0.423533 rgba(251, 255, 0, 145), stop:0.45 rgba(247, 255, 0, 208), stop:0.477581 rgba(255, 244, 71, 130), stop:0.518717 rgba(255, 218, 71, 130), stop:0.55 rgba(255, 255, 0, 255), stop:0.57754 rgba(255, 203, 0, 130), stop:0.625 rgba(255, 255, 0, 69), stop:1 rgba(255, 255, 0, 69));\n"
-"")
+        self.lst_erg.setStyleSheet("")
         self.lst_erg.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.lst_erg.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
         self.lst_erg.setAutoScrollMargin(16)
@@ -147,18 +146,7 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setPointSize(12)
         self.btn_suchen.setFont(font)
-        self.btn_suchen.setStyleSheet("#btn_suchen{\n"
-"color: white;\n"
-"background-color: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #88d, stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);\n"
-"border-width: 1px;\n"
-"border-color: #339;\n"
-"border-style: solid;\n"
-"border-radius: 7;\n"
-"padding: 3 px;\n"
-"font-size: 14 px;\n"
-"padding-left: 5 px;\n"
-"padding-right: 5 px;\n"
-"}")
+        self.btn_suchen.setStyleSheet("")
         self.btn_suchen.setAutoDefault(True)
         self.btn_suchen.setDefault(True)
         self.btn_suchen.setObjectName("btn_suchen")

@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['VidSuch6.py'],
+a = Analysis(['VidSuch.py'],
              pathex=['.\\FilmDetails', 'D:\\DEV\\Py\\vidsuch'],
              binaries=[],
              datas=[],

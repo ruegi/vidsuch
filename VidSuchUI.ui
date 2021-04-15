@@ -98,8 +98,7 @@ background: rgb(110, 104, 113)
         <bool>true</bool>
        </property>
        <property name="styleSheet">
-        <string notr="true">background-color:   qconicalgradient(cx:0, cy:0, angle:135, stop:0 rgba(255, 255, 0, 69), stop:0.375 rgba(255, 255, 0, 69), stop:0.423533 rgba(251, 255, 0, 145), stop:0.45 rgba(247, 255, 0, 208), stop:0.477581 rgba(255, 244, 71, 130), stop:0.518717 rgba(255, 218, 71, 130), stop:0.55 rgba(255, 255, 0, 255), stop:0.57754 rgba(255, 203, 0, 130), stop:0.625 rgba(255, 255, 0, 69), stop:1 rgba(255, 255, 0, 69));
-</string>
+        <string notr="true"/>
        </property>
        <property name="frameShape">
         <enum>QFrame::StyledPanel</enum>
@@ -293,18 +292,7 @@ background: rgb(110, 104, 113)
         </font>
        </property>
        <property name="styleSheet">
-        <string notr="true">#btn_suchen{
-color: white;
-background-color: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #88d, stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);
-border-width: 1px;
-border-color: #339;
-border-style: solid;
-border-radius: 7;
-padding: 3 px;
-font-size: 14 px;
-padding-left: 5 px;
-padding-right: 5 px;
-}</string>
+        <string notr="true"/>
        </property>
        <property name="text">
         <string>Suchen</string>
