@@ -545,8 +545,6 @@ StyleSheet = '''
     #         height: 11px;
     # }
 
-# font: bold 14px;min-width: 10em;
-
 # ürsprüngliches StylSheet des Such-Buttons
 # #btn_suchen{
 # color: white;
