@@ -6,3 +6,5 @@ dist/
 FilmDetails.alt5/
 alt/
 .pylintrc
+*.spec
+
