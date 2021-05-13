@@ -386,7 +386,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         # dialog.ui = FD.mainApp(fname)
         # dialog.exec_()
         # dialog.show()    
-        self.statusMeldung("Lade VideoInfo für {fname} . . .")
+        self.statusMeldung(f"Lade VideoInfo für {fname} . . .")
         QApplication.processEvents()
         FD.DlgMain(fname)
         self.statusMeldung("")
