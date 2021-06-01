@@ -13,7 +13,8 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             neuer Hotkey Ctrl+M oder F5, um eine Zwischenablage einzufügen
             neuer Hotkey Ctrl+s oder F4, um einen Text zu splitten
             Menü erzeugt für Doku der Hotkeys & About Dialog
-
+2021-06-01  V6.3
+            neues Kontextmeü in der Ergebnisliste
 '''
 
 import sys
@@ -36,7 +37,8 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QVBoxLayout,
                              QApplication,
                              QMessageBox,
-                             QInputDialog)
+                             QInputDialog,
+                             QAction)
 
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, Qt
 from PyQt5.Qt import  QClipboard
@@ -62,8 +64,8 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "6"
-    SUBVERSION = "2"
-    VERSIONDATE = "2021-04-11"
+    SUBVERSION = "3"
+    VERSIONDATE = "2021-06-01"
 
 # --------------------------------------------------------------------------------
 # Worker class
@@ -201,6 +203,23 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         self.actionEnde.triggered.connect(self.close)
         self.actionSplit.triggered.connect(self.suchFeldSplit)
         self.actionAbout.triggered.connect(self.about)
+
+        # Kontextmenü in der Tabelle lst_erg
+        # Actions definieren
+        infAct =  QAction('FilmInfo', self.lst_erg, triggered=self.videoInfo)
+        separator = QAction(self.lst_erg)
+        separator.setSeparator(True)
+        zeigAct = QAction('Film zeigen', self.lst_erg, triggered=lambda: self.videoStart(self.lst_erg.currentRow(), 0))
+        renAct = QAction('Film umbenennen', self.lst_erg, triggered=self.renVideo)
+        delAct =  QAction('Film löschen', self.lst_erg, triggered=self.delVideo)
+        # Policy zufügen
+        self.lst_erg.setContextMenuPolicy(Qt.ActionsContextMenu)
+        # Actions zum Kontextmenü zufügen
+        self.lst_erg.addAction(infAct)
+        self.lst_erg.addAction(separator)
+        self.lst_erg.addAction(zeigAct)
+        self.lst_erg.addAction(renAct)
+        self.lst_erg.addAction(delAct)
 
         self.statusMeldung("Ready")
         self.warten(False)
