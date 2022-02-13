@@ -15,6 +15,10 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             Menü erzeugt für Doku der Hotkeys & About Dialog
 2021-06-01  V6.3
             neues Kontextmeü in der Ergebnisliste
+2022-02-11  V6.4
+            Änderung der Prozedur 'suchfeldleer2',
+            wird ein '\n' oder ':' gefunden. so wird der eingefügte String 
+            an dieser Stelle gesplittet und in Suchfeld1 und Suchfeld2 eingefügt
 '''
 
 import sys
@@ -64,8 +68,8 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "6"
-    SUBVERSION = "3"
-    VERSIONDATE = "2021-06-01"
+    SUBVERSION = "4"
+    VERSIONDATE = "2022-11-02"
 
 # --------------------------------------------------------------------------------
 # Worker class
@@ -289,10 +293,28 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
     def suchFeldLeer2(self):
         txt = QApplication.clipboard().text().strip()
         if txt > "":
-            self.le_such1.setText(txt)                    
-        self.le_such2.setText("")
+            i = -1
+            if ":" in txt:
+                sb = ":"
+            elif "\n" in txt:
+                sb = "\n"
+            else:
+                sb = None
+            if sb is None:
+                begr1 = txt
+                begr2 = ""    
+            else:
+                i = txt.find(sb)
+                begr1 = txt[:i]
+                begr2 = txt[i+1:].strip()
+            self.le_such1.setText(begr1)
+            self.le_such2.setText(begr2)
+        else:
+            self.le_such1.setText("")
+            self.le_such2.setText("")
         self.statusMeldung("")
         self.le_such1.setFocus()
+
     
     def suchFeldSplit(self):
         txt = self.le_such1.text()
@@ -304,7 +326,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
     def about(self):        
         txt = "VidSuch" + "\n" + "-"*50 + f"\nSucht in {Konstanten.VPATH} nach Dateien" + "\n\n"
         txt += f"Version: {Konstanten.VERSION}.{Konstanten.SUBVERSION} vom {Konstanten.VERSIONDATE}\n" 
-        txt += "Autor: Michael Rüsweg-Gilbert"        
+        txt += "Autor: Michael Rüsweg-Gilbert rg@rgilbert.de (github.com/ruegi)"
         QMessageBox.about(self, "Über VidSuch", txt)
                                     
 
