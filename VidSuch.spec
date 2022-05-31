@@ -4,10 +4,10 @@ block_cipher = None
 
 
 a = Analysis(['VidSuch.py'],
-             pathex=['.\\FilmDetails', 'D:\\DEV\\Py\\vidsuch'],
+             pathex=['D:\\\\DEV\\\\Py\\\\vidsuch\\\\FilmDetails', 'D:\\DEV\\Py\\vidsuch'],
              binaries=[],
              datas=[],
-             hiddenimports=['FilmDetails\\FilmDetailsUI.py'],
+             hiddenimports=['FilmDetails', 'sqlalchemy'],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],

@@ -19,10 +19,22 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             Änderung der Prozedur 'suchfeldleer2',
             wird ein '\n' oder ':' gefunden. so wird der eingefügte String 
             an dieser Stelle gesplittet und in Suchfeld1 und Suchfeld2 eingefügt
+2022-05-28  V7.0
+            die Suche wird jetzt über die sqlite-DB VPFAD\vidarch.db geführt
+            und damit erheblich beschleunigt.
+            Nachteil: die DB muss aktuell gehalten werden!
+2022-05-30  V7.1
+            Kleine (kosmetische) Korrekturen
+2022-05-31  V7.2
+            Hinzufügen des Menüpunkts 'Datei/SyncDB" (Funtion Syndb)
 '''
 
 import sys
 import os
+
+import sqlalchemy
+import sqlalchemy.sql.default_comparator        # das braucht pyinstaller zum Finden der Module
+import vidarchdb
 
 # das soll die Importe aus dem Ordner FilmDetails mit einschließen...
 sys.path.append(r".\FilmDetails")
@@ -50,10 +62,11 @@ from PyQt5.QtGui import QIcon
 
 from math import log as logarit
 from datetime import datetime
-
+from subprocess import Popen, CREATE_NEW_CONSOLE
 import time
 
-import FilmDetails.FilmDetails as FD
+# import FilmDetails as FD
+from FilmDetails import FilmDetails
 import VidSuchUI
 
 # Handle high resolution displays (thx 2 https://stackoverflow.com/questions/43904594/pyqt-adjusting-for-different-screen-resolution):
@@ -67,9 +80,11 @@ stopFlag = False
 class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
-    VERSION = "6"
-    SUBVERSION = "4"
-    VERSIONDATE = "2022-11-02"
+    VERSION = "7"
+    SUBVERSION = "2"
+    VERSIONDATE = "2022-05-31"
+    DBNAME = "Y:\\video\\vidarch.db"
+    SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
 
 # --------------------------------------------------------------------------------
 # Worker class
@@ -95,8 +110,8 @@ class Worker(QObject):
         pass
 
     @pyqtSlot(str, str, str)
-    def findewas(self, such, such2, vpath):
-        '''
+    def findewas(self, such: str, such2: str, vpath: str):
+        ''' 
         Findet Videos nach Stichworten
         sucht unabhängig von Groß/klein-schreibung
         enthält der erste suchbegriff "such" eine Blank, so wird auch nach "_" an dieser Stelle gesucht
@@ -108,45 +123,48 @@ class Worker(QObject):
         global stopFlag
 
         such = such.lower()
-        such2 = None if such2 == "" else such2.lower()
-        repl_mode = False   # repl_mode wird nur benötigt, wenn such ein Blank oder "_" enthält
-        if " " in such or "_" in such:
-            such_ = such.replace(" ", "_")  # such1 = such, aber komplett mit _ statt Blank
-            suchb = such.replace("_", " ")  # suchb wie such, aber komplett mit Blank (kein _)
-            repl_mode = True
-        if such2 is None:
-            doSuch2 = False
-        else:
-            doSuch2 = True
-            such2_ = such2.replace(" ", "_")  # such2_ = such2, aber komplett mit _ statt Blank
-            such2b = such2.replace("_", " ")  # such2b wie such2, aber komplett mit Blank (kein _)
-        lst = []
-        for root, _, files in os.walk(vpath):
-            if stopFlag:
-                break
-            for f in files:
-                fl = f.lower()
-                x = None
-                if repl_mode:
-                    if suchb in fl or such_ in fl:
-                        if doSuch2:
-                            if such2 in fl or such2_ in fl or such2b in fl:
+        such2 = such2.lower()
+        lst = vidarchdb.findeFilm(such, such2, db=Konstanten.DBNAME, archiv=Konstanten.VPATH)
+        if lst is None:     # keine Verbindung zur DB        
+            such2 = None if such2 == "" else such2.lower()
+            repl_mode = False   # repl_mode wird nur benötigt, wenn such ein Blank oder "_" enthält
+            if " " in such or "_" in such:
+                such_ = such.replace(" ", "_")  # such1 = such, aber komplett mit _ statt Blank
+                suchb = such.replace("_", " ")  # suchb wie such, aber komplett mit Blank (kein _)
+                repl_mode = True
+            if such2 is None:
+                doSuch2 = False
+            else:
+                doSuch2 = True
+                such2_ = such2.replace(" ", "_")  # such2_ = such2, aber komplett mit _ statt Blank
+                such2b = such2.replace("_", " ")  # such2b wie such2, aber komplett mit Blank (kein _)
+            lst = []
+            for root, _, files in os.walk(vpath):
+                if stopFlag:
+                    break
+                for f in files:
+                    fl = f.lower()
+                    x = None
+                    if repl_mode:
+                        if suchb in fl or such_ in fl:
+                            if doSuch2:
+                                if such2 in fl or such2_ in fl or such2b in fl:
+                                    x = os.path.join(root, f)
+                            else:
                                 x = os.path.join(root, f)
-                        else:
-                            x = os.path.join(root, f)
-                else:
-                    if such in fl:
-                        if doSuch2:
-                            if such2 in fl or such2_ in fl or such2b in fl:
+                    else:
+                        if such in fl:
+                            if doSuch2:
+                                if such2 in fl or such2_ in fl or such2b in fl:
+                                    x = os.path.join(root, f)
+                            else:
                                 x = os.path.join(root, f)
-                        else:
-                            x = os.path.join(root, f)
-                if x is None:
-                    continue
-                else:
-                    lst.append(x)
-                    # self.worker.progress.emit(x)
-                    self.progress.emit(x)
+                    if x is None:
+                        continue
+                    else:
+                        lst.append(x)
+                        # self.worker.progress.emit(x)
+                        self.progress.emit(x)                
         if not stopFlag:
             self.result.emit(lst)
         return
@@ -170,6 +188,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         self.app = appN
         self.worker = None
         self.delBasket = "__del"
+        self.lbl_db.setText("DB: " + Konstanten.DBNAME)
 
         # Icon versorgen
         scriptDir = str(os.path.dirname(os.path.realpath(__file__)))
@@ -178,7 +197,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         self.btn_suchen.setEnabled(False)
         # btn_suchen.setEnabled(True)
         self.le_such1.textChanged.connect(self.suchBtnAktivieren)
-
+        
         #self.lst_erg.setTextBackgroundColor(QColor("lightyellow"))
         # self.lst_erg.setStyleSheet("background-color: lightyellow;")
         self.lst_erg.setHorizontalHeaderLabels(('Video', 'Länge', 'Datum'))
@@ -204,6 +223,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         self.btnEnde.clicked.connect(self.close)
 
         self.actionEinfuegen.triggered.connect(self.suchFeldLeer2)
+        self.actionSync.triggered.connect(self.syncDB)
         self.actionEnde.triggered.connect(self.close)
         self.actionSplit.triggered.connect(self.suchFeldSplit)
         self.actionAbout.triggered.connect(self.about)
@@ -326,6 +346,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
     def about(self):        
         txt = "VidSuch" + "\n" + "-"*50 + f"\nSucht in {Konstanten.VPATH} nach Dateien" + "\n\n"
         txt += f"Version: {Konstanten.VERSION}.{Konstanten.SUBVERSION} vom {Konstanten.VERSIONDATE}\n" 
+        txt += f"DB: {Konstanten.DBNAME}\n\n" 
         txt += "Autor: Michael Rüsweg-Gilbert rg@rgilbert.de (github.com/ruegi)"
         QMessageBox.about(self, "Über VidSuch", txt)
                                     
@@ -379,10 +400,18 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         self.lst_erg.setRowCount(0)
         nr = 0
         for vid in liste:
-            # weitere dateieigenschaften lesen
-            vlen = format_size(os.stat(vid).st_size)
-            vdat = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.stat(vid).st_ctime))
-            # liste aufbauen
+            # weitere Dateieigenschaften lesen
+            try:
+                oss = os.stat(vid)
+                vlen = format_size(oss.st_size)                
+                vdat = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(oss.st_ctime))
+            except:
+                vlen = "???"
+                vdat = "DB is async!"            
+            finally:
+                pass
+
+            ''' liste aufbauen ''' 
             self.lst_erg.insertRow(nr)
             self.lst_erg.setItem(nr, 0, QTableWidgetItem(str(vid)))
             self.lst_erg.setItem(nr, 1, QTableWidgetItem(str(vlen)))
@@ -420,16 +449,11 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
     @pyqtSlot()
     def videoInfo(self):
         fname = self._getCurrentVideo()		# kompletter DateiName
-        # fname = item.text()
         if fname is None:
             return
-        # dialog = QDialog()
-        # dialog.ui = FD.mainApp(fname)
-        # dialog.exec_()
-        # dialog.show()    
         self.statusMeldung(f"Lade VideoInfo für {fname} . . .")
-        QApplication.processEvents()
-        FD.DlgMain(fname)
+        QApplication.processEvents()        
+        FilmDetails.DlgMain(fname)
         self.statusMeldung("")
 
     @pyqtSlot()
@@ -446,16 +470,19 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             delVideo = fname
-            delTarget = self.vpath + os.sep + self.delBasket + os.sep + vidName
-            try:
+            delTarget = os.path.join(self.vpath, self.delBasket, vidName)
+            try:                
                 os.rename(delVideo, delTarget)
-            except OSError as err:
-                self.statusMeldung("Fehler! ({})".format(err.strerror))
+                if not vidarchdb.film_umbenennen(delVideo, delTarget):                 
+                    self.statusMeldung("Fehler! Konnte den DB-Namen nicht ändern!")
+            except OSError as err:                
+                self.statusMeldung("Fehler! ({})".format(err.strerror))                
+            else:
+                self.statusMeldung(
+                    "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
             finally:
                 # SuchErgebnis aktualisieren
                 self.suchen()
-                self.statusMeldung(
-                    "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
         else:
             self.statusMeldung("Löschen abgebrochen!")
         return
@@ -473,31 +500,54 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         alterName = fname
         vidName = os.path.basename(fname)
         pfad = os.path.dirname(fname)
-        neuerName, ok = QInputDialog.getText(self, 'Film im Prep-Ordner umbenennen', 'Neuer Name:',
-                                             QLineEdit.Normal, vidName)
-        if ok and not (neuerName == ''):
+        neuerName = self._runDialog(vidName)
+        # neuerName, ok = QInputDialog.getText(self, 'Film im Prep-Ordner umbenennen', 'Neuer Name:',
+        #                                      QLineEdit.Normal, vidName)
+        if neuerName is None:
+            pass
+        elif not (neuerName == ''):
             neuerFullName = pfad + os.sep + neuerName
             alterFullName = pfad + os.sep + vidName
             try:
-                os.rename(alterFullName, neuerFullName)
+                if vidarchdb.film_umbenennen(alterFullName, neuerFullName):                    
+                    os.rename(alterFullName, neuerFullName)
+                else:
+                    self.statusMeldung("Fehler! Konnte den DB-Namen nicht ändern!")
             except OSError as err:
                 self.statusMeldung("Fehler! ({})".format(err.strerror))
             finally:
                 # Anzeige aktualisieren
                 self.suchen()
-                self.statusbar.showMessage("Video umbenannt in: {}".format(neuerName))
+                self.statusbar.showMessage("Video umbenannt in: {}".format(neuerName))            
+        else:
+            pass
         return
 
+    def _runDialog(self, videoName):
+        neuerName, ok = QInputDialog.getText(self, 'Film im Prep-Ordner umbenennen', 'Neuer Name:',
+                                             QLineEdit.Normal, videoName)
+        if not ok:
+            return None
+        else:
+            return neuerName
+        
     def _getCurrentVideo(self):
         row = self.lst_erg.currentRow()
         if row > self.lst_erg.rowCount():
             return None
         vid = self.lst_erg.item(row, 0).text()
         return vid
+
+    def syncDB(self):
+        self.statusMeldung(f"Synkronisation von Archiv und {Konstanten.DBNAME} läuft! Pls stand by...")
+        proc = Popen(Konstanten.SYNCDB, creationflags=CREATE_NEW_CONSOLE)
+        proc.wait()
+        self.statusMeldung(f"Synkronisation von Archiv und {Konstanten.DBNAME} beendet!")
+
+
 #
 #   Allg Funktionen
 #
-
 def format_size(flen: int):
     """Human friendly file size"""
     unit_list = list(zip(['bytes', 'kB', 'MB', 'GB', 'TB', 'PB'], [0, 3, 3, 3, 3, 3]))
@@ -601,6 +651,7 @@ StyleSheet = '''
 # }
 
 if __name__ == '__main__':
+    vidarchdb.defineDBName(Konstanten.DBNAME)
     app = QApplication(sys.argv)
     app.setStyleSheet(StyleSheet)
     form = VidSuchApp(app)

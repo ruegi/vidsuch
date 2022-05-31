@@ -7,7 +7,7 @@ echo %ERRORLEVEL%
 if "%1"=="simple" goto Ende
 
 del /S /Y .\dist\VidSuch
-pyinstaller -w -i VidSuch.ico --clean -y -p .\FilmDetails --hiddenimport FilmDetails\FilmDetailsUI.py -n vidsuch VidSuch%VERSION%.py
+pyinstaller -i VidSuch.ico --windowed --clean -y -p D:\\DEV\\Py\\vidsuch\\FilmDetails --hiddenimport FilmDetails --hiddenimport sqlalchemy -n vidsuch VidSuch%VERSION%.py
 copy .\VidSuch.ico .\dist\VidSuch
 copy .\EndBut*.png .\dist\VidSuch
 :Ende

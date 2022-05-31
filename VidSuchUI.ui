@@ -397,6 +397,39 @@ background: rgb(110, 104, 113)
      <string>DateiInfo (F2)</string>
     </property>
    </widget>
+   <widget class="QLabel" name="lbl_db">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>1066</x>
+      <y>640</y>
+      <width>191</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>9</pointsize>
+     </font>
+    </property>
+    <property name="layoutDirection">
+     <enum>Qt::RightToLeft</enum>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
+    </property>
+    <property name="inputMethodHints">
+     <set>Qt::ImhNoAutoUppercase</set>
+    </property>
+    <property name="text">
+     <string>DB: </string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+    </property>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QMenuBar" name="menuBar">
@@ -412,6 +445,8 @@ background: rgb(110, 104, 113)
     <property name="title">
      <string>Datei</string>
     </property>
+    <addaction name="actionSync"/>
+    <addaction name="separator"/>
     <addaction name="actionEnde"/>
    </widget>
    <widget class="QMenu" name="menuBearbeiten">
@@ -449,6 +484,11 @@ background: rgb(110, 104, 113)
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionSync">
+   <property name="text">
+    <string>Sync DB mit Archiv</string>
    </property>
   </action>
  </widget>

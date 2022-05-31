@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'VidSuchUI.ui'
+# Form implementation generated from reading ui file 'd:\DEV\Py\vidsuch\VidSuchUI.ui'
 #
 # Created by: PyQt5 UI code generator 5.13.2
 #
@@ -15,7 +15,7 @@ class Ui_MainWindow(object):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1274, 755)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("VidSuch.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("d:\\DEV\\Py\\vidsuch\\VidSuch.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setStyleSheet("#QMainWindow {\n"
 "background-color: rgb(170, 255, 127)\n"
@@ -166,9 +166,9 @@ class Ui_MainWindow(object):
         self.btnEnde.setGeometry(QtCore.QRect(1204, 660, 51, 51))
         self.btnEnde.setText("")
         icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap("EndBut_neutral.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        icon1.addPixmap(QtGui.QPixmap("EndBut_focus.png"), QtGui.QIcon.Active, QtGui.QIcon.On)
-        icon1.addPixmap(QtGui.QPixmap("EndBut_pushed.png"), QtGui.QIcon.Selected, QtGui.QIcon.On)
+        icon1.addPixmap(QtGui.QPixmap("d:\\DEV\\Py\\vidsuch\\EndBut_neutral.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon1.addPixmap(QtGui.QPixmap("d:\\DEV\\Py\\vidsuch\\EndBut_focus.png"), QtGui.QIcon.Active, QtGui.QIcon.On)
+        icon1.addPixmap(QtGui.QPixmap("d:\\DEV\\Py\\vidsuch\\EndBut_pushed.png"), QtGui.QIcon.Selected, QtGui.QIcon.On)
         self.btnEnde.setIcon(icon1)
         self.btnEnde.setIconSize(QtCore.QSize(48, 48))
         self.btnEnde.setObjectName("btnEnde")
@@ -258,13 +258,3 @@ class Ui_MainWindow(object):
         self.actionSplit.setText(_translate("MainWindow", "Split Suchfeld1 @ Cursor Pos - (F4 ;strg+s)"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionSync.setText(_translate("MainWindow", "Sync DB mit Archiv"))
-
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
-    sys.exit(app.exec_())
