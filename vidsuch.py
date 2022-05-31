@@ -26,7 +26,9 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
 2022-05-30  V7.1
             Kleine (kosmetische) Korrekturen
 2022-05-31  V7.2
-            Hinzufügen des Menüpunkts 'Datei/SyncDB" (Funtion Syndb)
+            Hinzufügen des Menüpunkts 'Datei/SyncDB" (Funtion Syncdb)
+            V7.3
+            Die Funktion FilmInfo wird durch einen externen Programmaufruf getätigt
 '''
 
 import sys
@@ -65,8 +67,7 @@ from datetime import datetime
 from subprocess import Popen, CREATE_NEW_CONSOLE
 import time
 
-# import FilmDetails as FD
-from FilmDetails import FilmDetails
+# from FilmDetails import FilmDetails
 import VidSuchUI
 
 # Handle high resolution displays (thx 2 https://stackoverflow.com/questions/43904594/pyqt-adjusting-for-different-screen-resolution):
@@ -81,10 +82,11 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "7"
-    SUBVERSION = "2"
+    SUBVERSION = "3"
     VERSIONDATE = "2022-05-31"
     DBNAME = "Y:\\video\\vidarch.db"
     SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
+    FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
 
 # --------------------------------------------------------------------------------
 # Worker class
@@ -452,9 +454,19 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         if fname is None:
             return
         self.statusMeldung(f"Lade VideoInfo für {fname} . . .")
-        QApplication.processEvents()        
-        FilmDetails.DlgMain(fname)
+        QApplication.processEvents()
+        proc = Popen([Konstanten.FilmInfo, fname] )
+        proc.wait()
         self.statusMeldung("")
+
+    # def videoInfo_alt(self):
+    #     fname = self._getCurrentVideo()		# kompletter DateiName
+    #     if fname is None:
+    #         return
+    #     self.statusMeldung(f"Lade VideoInfo für {fname} . . .")
+    #     QApplication.processEvents()        
+    #     FilmDetails.DlgMain(fname)
+    #     self.statusMeldung("")
 
     @pyqtSlot()
     def delVideo(self):
