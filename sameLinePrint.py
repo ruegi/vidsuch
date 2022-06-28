@@ -13,13 +13,17 @@ def sameLinePrint(txt: str):
     '''
     l = len(txt)
     if l > anzahlSpalten:
-        txt = txt[-1*anzahlSpalten]
+        txt = txt[-1*anzahlSpalten:]
     else:
         txt = txt + " "*(anzahlSpalten-l)
     print(f"\r{txt}\r" , end="")
 
 # only 4 testing
 if __name__ == "__main__":
-    sameLinePrint("Das ist ganz Lang"*20)
-    sameLinePrint("Das ist kurz\n")
+    print("Zeile 1: fds fjds fjkds öfjkldsö kfds fjkdslöa jfkldös ajklföd sjklf d--1")    
+    sameLinePrint("Das ist ganz Lang"*10)
+    print("")
+    sameLinePrint("Das ist kurz")
+    print("")
+    print("Zeile 2: fds fjds fjkds öfjkldsö kfds fjkdslöa jfkldös ajklföd sjklf d--2")
 

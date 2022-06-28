@@ -190,24 +190,27 @@ def get_config(key: str):
 def anlage_relpath(session, relPath):
     # legt einen neuen relPath an
     # und gibt die id zurück
+    # relPath muss wirklich relativ zum ArchivPfad sein!
     global engine, conn, my_session
     if session is None:
         dbconnect()
+    else:
+        my_session = session
     if "\\" in relPath:
         relp = relPath.replace("\\", "/")
     else:
         relp = relPath
-    q = session.query(vapfad).filter(vapfad.relPath == relp)
+    q = my_session.query(vapfad).filter(vapfad.relPath == relp)
     pa = q.first()
     if pa is None:
         pa = vapfad(relPath=relPath)
         try:
-            session.add(pa)
-            session.commit()
+            my_session.add(pa)
+            my_session.commit()
             id = pa.id
         except:     # hier sollte es nur bei einer race-condition hinkommen...
-            session.rollback()
-            q = session.query(vapfad).filter(vapfad.relPath == relPath)
+            my_session.rollback()
+            q = my_session.query(vapfad).filter(vapfad.relPath == relPath)
             pa = q.first()
             id = pa.id
     else:
@@ -226,14 +229,22 @@ def export_CSV(name="vidarch.csv"):
             print(f"{erg[0]};{erg[1]};{erg[2]};{erg[3]}")
 
 
-def db_scan():
+def db_scan(Pfad=None):
     global engine, conn, my_session
     if not dbconnect(mustExist=True):
         return "Kann die DB nicht verbinden!"
-    q = my_session.query(vapfad.relPath, vainhalt.id, vainhalt.dateiName, vainhalt.dateiExt, vainhalt.md5)\
+    if Pfad is None:
+        q = my_session.query(vapfad.relPath, vainhalt.id, vainhalt.dateiName, vainhalt.dateiExt, vainhalt.md5)\
                         .join(vapfad)\
                         .group_by(vapfad.relPath, vainhalt.dateiName)\
                         .all()
+    else:
+        q = my_session.query(vapfad.relPath, vainhalt.id, vainhalt.dateiName, vainhalt.dateiExt, vainhalt.md5)\
+                        .join(vapfad)\
+                        .filter(vapfad.relPath==Pfad)\
+                        .order_by(vainhalt.dateiName)\
+                        .all()
+
     for res in q:
         film = os.path.join(ARCHIV, res.relPath, res.dateiName)
         if os.path.exists(film):
@@ -262,6 +273,7 @@ def findeFilm(suchbegriff1, suchbegriff2, db=DBNAME, archiv=ARCHIV):
         gibt "None" zurück, wenn keine DB verbunden werden kann
         gibt [] zurück, wenn nichts gefunden wurde
     '''
+    import re
     global engine, conn, my_session
     if not dbconnect(mustExist=True):
         print(f"!!! Fehler, die Bank konnte nicht verbunden werden!")
@@ -276,6 +288,12 @@ def findeFilm(suchbegriff1, suchbegriff2, db=DBNAME, archiv=ARCHIV):
         # print(f"Suchbegriff: [{looking_for}]")
     else:
         looking_for = '%{0}%'.format(suchbegriff1)
+    if suchbegriff2 is None or suchbegriff2 == "":
+        doSuch2 = False
+    else:
+        doSuch2 = True        
+        sb2 = suchbegriff2.replace(" ", "_")
+        sb2 = sb2.replace("_", "[ _]")        
 
     result = my_session.query( vapfad.relPath, 
                                vainhalt.dateiName, 
@@ -284,13 +302,18 @@ def findeFilm(suchbegriff1, suchbegriff2, db=DBNAME, archiv=ARCHIV):
                             )\
                             .join(vapfad)\
                             .filter(vainhalt.dateiName.ilike(looking_for))\
-                            .order_by(vapfad.relPath)
+                            .order_by(vapfad.relPath)\
+                            .all()
     anz = 0
     lst = []
     for res in result:
-        if suchbegriff2.lower() in res.dateiName.lower() or suchbegriff2 == "":
+        gefunden = True
+        if doSuch2:
+            if not re.search(sb2, res.dateiName.lower()):
+                gefunden = False
+        if gefunden:
             anz += 1
-            pfad = res.relPath.replace("/", "\\")
+            pfad = res.relPath.replace("/", "\\")            
             vid = os.path.join(archiv, pfad, res.dateiName)
             # created= os.stat(vid).st_ctime
             lst.append(vid)
@@ -338,28 +361,47 @@ def _get_pfad_id(session, pfad):
         return anlage_relpath(session, pfad)
     else:
         return qres.id
-    
 
-def make_md5(DateiName):
+def getFilmMD5(relPfad: str, FilmName: str)->str:
+    # ermittelt den gespeicherten MD5-Wert einen Filmes;
+    # gibt den MD5-Wert bei Erfolg zurück
+    # oder "", wenn nichts gefunden wurde,
+    # oder none bei Connect-Fehler
+    if not dbconnect():
+        print("FEHLER! Film-MD5 finden: kann die DB nicht verbinden!")
+        return None
+    q = my_session.query(vainhalt.md5)\
+                    .join(vapfad)\
+                    .filter(and_(vapfad.relPath==relPfad, vainhalt.dateiName==FilmName) )\
+                    .first()
+    if q is None:
+        return ""
+    else:
+        return q.md5        
+
+def make_md5(DateiName, filler=None):
     '''
     berechnet die MD5 einer Datei
     Parameter:
         DateiName: voller Dateiname mit Pfad
+        (opt.) filler: Fülltext vor den laufenden Strichen
     Return:
         MD5-Checksum der Datei
     '''
-    chunkSize = 8*1024*1024        
+    chunkSize = 8*1024*1024
     anz = 0
     sym = "-\|/-"
+    if filler is None:
+        filler = "MD5 "
     with open(DateiName, "rb") as f:
         file_hash = hashlib.md5()
         print("MD5", end="", flush=True)
         while chunk := f.read(chunkSize):
             file_hash.update(chunk)
-            print("\rMD5 " + sym[anz], end="", flush=True)
+            print(f"\r{filler}" + sym[anz], end="", flush=True)
             anz = (anz + 1) % 5
     md5 = file_hash.hexdigest()
-    print("")
+    # print("")
     # print(md5)  # to get a printable str instead of bytes
     return str(md5)
 
@@ -384,17 +426,4 @@ if __name__ == "__main__":
 
     exit(0)
 
-
-'''
-aus: https://stackoverflow.com/questions/27736122/how-to-insert-into-multiple-tables-to-mysql-with-sqlalchemy
-session = self.DBSession()
-new_group = Group(name='gname')
-session.add(new_group)
-session.flush() # NOTE: this will actually insert the record in the database and set
-                # new_group.id automatically. The session, however, is not committed yet! 
-gu = GroupUser(gid=new_group.id, uid=100)
-session.add(gu)
-
-session.commit() # this will finally commit your transaction, i.e. 2 statements above
-'''
 

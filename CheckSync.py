@@ -1,7 +1,7 @@
 '''
-Synchronisiert die DB 'vidarch.db' mit dem Archiv,
-bestimmt ggf. die md5-Werte der Filme
-rg, 2022-05-29
+Prüft, ob die MD5-Werte aller Filme im übergeben Ordner mit denen in der DB übereinstimmen
+Schreibt zum Ende ein Protokoll aller Fehler nach stdout
+rg, 2022-06-12
 '''
 import vidarchdb
 import os 
@@ -24,9 +24,11 @@ COLOR = {
 
 mitMD5 = False
 vidPfad = "v:\\video"
-version = "1.1 vom 2022-05-30"
+version = "0.9 vom 2022-06-12"
 medienTypen = ['.m4v', '.m2v', '.mpg', '.mp2', '.mp3', '.mp4', '.ogg', '.mkv', '.webm']
 DBNAME="V:\\video\\vidarch.db"
+
+Fehler = []
 
 def make_md5(DateiName):
     '''
@@ -46,7 +48,7 @@ def make_md5(DateiName):
     # print(md5)  # to get a printable str instead of bytes
     return md5
 
-def syncDBmitArchiv(startOrdner=vidPfad):
+def checkMD5(startOrdner=vidPfad)->int:
     aktOrdner = ""
     anz = 0
     anzD = 0
@@ -66,14 +68,24 @@ def syncDBmitArchiv(startOrdner=vidPfad):
                 neu = True                                
             _, ext = os.path.splitext(datei)
             if not ext in medienTypen:
-                continue
-            # print(f"  >>> {datei}")
+                continue            
             relPath = root[len(vidPfad) +1:]
-            # print(f"\r{aktOrdner} : {datei}" + " "*80, end="")
-            # print(f"Gefunden: {relPath}  -  {datei}" + " "*80)
-            ret = vidarchdb.film_merken(relPath, datei, ext, "", verbose=False )
-            sameLinePrint(f"\r{ret}{aktOrdner} : {datei}")
-
+            ret = vidarchdb.getFilmMD5(relPath, datei)
+            if ret == "":
+                sameLinePrint(f"{aktOrdner} : {datei}; FEHLER: kein MD5-Wert gefunden")
+                sammleFehler(relPath, datei, "MD5-Wert nicht in der DB gefunden!")
+                print("")
+            else:
+                sameLinePrint(f"{aktOrdner} : {datei} Prüfe MD5...")
+                fullName = os.path.join(vidPfad, relPath, datei)
+                md = vidarchdb.make_md5(fullName, filler=f"{aktOrdner} : {datei} Prüfe MD5 ")
+                if md == ret:
+                    sameLinePrint(f"{aktOrdner} : {datei} Prüfe MD5...OK!")
+                else:
+                    fe = f"MD5-FEHLER: DB={ret}; Archiv={md}"
+                    sameLinePrint(f"{aktOrdner} : {datei}; {fe}")
+                    sammleFehler(relPath, datei, fe)
+                print()
             neu = False
             anz +=1
             anzD +=1
@@ -81,17 +93,20 @@ def syncDBmitArchiv(startOrdner=vidPfad):
         print("")           # neue Zeile
     return anz
 
+def sammleFehler(relP, Dat, Err):
+    global Fehler
+    x = [relP, Dat, Err]
+    Fehler.append(x)
+
 
 if __name__ == "__main__":
 
     os.system('')   # magic Call to enable ANSi-Seq.
     print("=" * 80)
-    print(COLOR["BLUE"] + 'VideoSync.py' + COLOR["ENDC"] + ' by ruegi,')
+    print(COLOR["BLUE"] + 'ChecSync.py' + COLOR["ENDC"] + ' by ruegi,')
     print(COLOR["BLUE"] + f'Version: {version}' + COLOR["ENDC"])
     
     print("=" * 80)
-
-    # print(f"DBNAME={DBNAME}")
 
     vidarchdb.defineDBName(DBNAME)
     if not vidarchdb.dbconnect(mustExist=True, SQLECHO=False):
@@ -104,7 +119,7 @@ if __name__ == "__main__":
 
     # Wenn der Job mit Parameter gestartet wrd, wird nur dieser Ordner geprüft,
     # ansonsten das gesamter VideoArchiv
-    # z.B. 'VideoSync __in3' prüft nur den Ordner V:\video\__in3
+    # z.B. 'CheckSync __in3' prüft nur den Ordner V:\video\__in3
     relPfad = None
     vPfad = vidPfad
     teilSuche = False
@@ -116,30 +131,26 @@ if __name__ == "__main__":
             vPfad = startord  
             teilSuche = True
 
-    print(f'DBSync mit VideoOrdner [{vPfad}]\n')
+    print(f'CheckSync in VideoOrdner [{vPfad}]\n')
 
-
-    # 1. Lauf: alle Filme im Archiv in DB unterbringen
-    print(COLOR["GREEN"] + '1. Lauf: Archiv-DurchLauf')
-    print("-" * 80)
-    print(COLOR["ENDC"])
-
-    anz = syncDBmitArchiv(startOrdner=vPfad)
-
-    # 2. Lauf: alle Filme der DB im Ordner suchen, sonst löschen
-    print(COLOR["GREEN"] + '2. Lauf: DB-DurchLauf')
-    print("-" * 80)
-    print(COLOR["ENDC"])
-
-    ret = vidarchdb.db_scan(Pfad=relPfad)
-    if ret:
-        print("\n" + COLOR["RED"] + f"DB-Problem: {ret}" + COLOR["ENDC"])
-
-    if teilSuche:
-        vidarchdb.set_config("letzterTeilSync", datetime.datetime.now() )
-        vidarchdb.set_config("letzterTeilSyncOrdner", relPfad )
-    else:
-        vidarchdb.set_config("letzterFullSync", datetime.datetime.now() )
+    # Ürüfung entlang des Archiv-Ordners...
+    anz = checkMD5(vPfad)    
+    fanz = len(Fehler)
+    if fanz == 0:
+        print("\n" + COLOR["GREEN"] + "Keine Fehler gefunden!" + COLOR["ENDC"])
+    else:                
+        for res in Fehler:
+            print(COLOR["RED"] + f"{res[0]}: {res[1]} - {res[2]} "+ COLOR["ENDC"])
+        if fanz > 1:
+            print(f"--- Das waren {fanz} Fehler")
+        else:
+            print(f"--- Das war 1 Fehler")
+    
+    # if teilSuche:
+    #     vidarchdb.set_config("letzterTeilSync", datetime.datetime.now() )
+    #     vidarchdb.set_config("letzterTeilSyncOrdner", relPfad )
+    # else:
+    #     vidarchdb.set_config("letzterFullSync", datetime.datetime.now() )
 
     print("\n" + COLOR["GREEN"] + f"Fertig! Es wurden {anz} Medien verarbeitet." + COLOR["ENDC"])
 

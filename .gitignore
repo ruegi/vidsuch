@@ -7,7 +7,7 @@ FilmDetails.alt5/
 alt/
 .pylintrc
 *.spec
-
+test/
 tsize.py
 .gitignore
 tstrun.py
