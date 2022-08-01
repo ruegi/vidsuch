@@ -283,17 +283,25 @@ def findeFilm(suchbegriff1, suchbegriff2, db=DBNAME, archiv=ARCHIV):
         #                     .replace('*', '%')\
         #                     .replace('?', '_')\
         #                     .replace(' ', '_')
+    looking_for = suchbegriff1
     if ' ' in suchbegriff1:
-        looking_for = "%" + suchbegriff1.replace(' ', '_') + "%"
-        # print(f"Suchbegriff: [{looking_for}]")
-    else:
-        looking_for = '%{0}%'.format(suchbegriff1)
+        looking_for = suchbegriff1.replace(' ', '_')
+    if  '?' in suchbegriff1:
+        looking_for = suchbegriff1.replace('?', '_')
+    if  '/' in suchbegriff1:
+        looking_for = suchbegriff1.replace('/', '_')
+    if  '\\' in suchbegriff1:
+        looking_for = suchbegriff1.replace('\\', '_')
+    looking_for = '%{0}%'.format(looking_for)
+
     if suchbegriff2 is None or suchbegriff2 == "":
         doSuch2 = False
     else:
         doSuch2 = True        
         sb2 = suchbegriff2.replace(" ", "_")
         sb2 = sb2.replace("_", "[ _]")        
+    
+    # print(f"Vor query; parms: ({suchbegriff1}), ({looking_for})")
 
     result = my_session.query( vapfad.relPath, 
                                vainhalt.dateiName, 

@@ -29,6 +29,8 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             Hinzufügen des Menüpunkts 'Datei/SyncDB" (Funtion Syncdb)
             V7.3
             Die Funktion FilmInfo wird durch einen externen Programmaufruf getätigt
+2022-08-01  V7.3.1
+            Fehlerbereinigung in vidarchdb.py/findefilm
 '''
 
 import sys
@@ -82,8 +84,8 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "7"
-    SUBVERSION = "3"
-    VERSIONDATE = "2022-05-31"
+    SUBVERSION = "3.1"
+    VERSIONDATE = "2022-08-01"
     DBNAME = "Y:\\video\\vidarch.db"
     SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
@@ -126,7 +128,10 @@ class Worker(QObject):
 
         such = such.lower()
         such2 = such2.lower()
+        # print(f"in (findewas), Parms: [{such}], [{such2}]")
+
         lst = vidarchdb.findeFilm(such, such2, db=Konstanten.DBNAME, archiv=Konstanten.VPATH)
+        # print(f"nach findefilm, Parms: ({such}), ({such2}]), lst=({lst})")
         if lst is None:     # keine Verbindung zur DB        
             such2 = None if such2 == "" else such2.lower()
             repl_mode = False   # repl_mode wird nur benötigt, wenn such ein Blank oder "_" enthält
