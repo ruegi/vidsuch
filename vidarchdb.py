@@ -285,14 +285,18 @@ def findeFilm(suchbegriff1, suchbegriff2, db=DBNAME, archiv=ARCHIV):
         #                     .replace(' ', '_')
     looking_for = suchbegriff1
     if ' ' in suchbegriff1:
-        looking_for = suchbegriff1.replace(' ', '_')
+        looking_for = looking_for.replace(' ', '_')
     if  '?' in suchbegriff1:
-        looking_for = suchbegriff1.replace('?', '_')
+        looking_for = looking_for.replace('?', '_')
     if  '/' in suchbegriff1:
-        looking_for = suchbegriff1.replace('/', '_')
+        looking_for = looking_for.replace('/', '_')
     if  '\\' in suchbegriff1:
-        looking_for = suchbegriff1.replace('\\', '_')
+        looking_for = looking_for.replace('\\', '_')
+    if  '*' in suchbegriff1:
+        looking_for = looking_for.replace('*', '%')
     looking_for = '%{0}%'.format(looking_for)
+
+    print(f"suchbegriff=[{suchbegriff1}], looking_for=[{looking_for}]")   
 
     if suchbegriff2 is None or suchbegriff2 == "":
         doSuch2 = False

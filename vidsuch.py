@@ -84,8 +84,8 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "7"
-    SUBVERSION = "3.1"
-    VERSIONDATE = "2022-08-01"
+    SUBVERSION = "3.2"
+    VERSIONDATE = "2022-08-13"
     DBNAME = "Y:\\video\\vidarch.db"
     SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
