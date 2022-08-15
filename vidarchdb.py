@@ -4,6 +4,7 @@ Erstellen / Pflegen der Video-Archiv-DB mittels sqlalchemy / sqlite
 rg 05.2022
 '''
 
+from re import L
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, ForeignKey, UniqueConstraint
@@ -12,6 +13,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import exc
 import os.path
+import sys
 import hashlib
 from sameLinePrint import sameLinePrint
 
@@ -261,75 +263,102 @@ def db_scan(Pfad=None):
     return ""
         
 
-def findeFilm(suchbegriff1, suchbegriff2, db=DBNAME, archiv=ARCHIV):
+# def findeFilm(suchbegriff1, suchbegriff2, archiv=ARCHIV):
+#     '''
+#     sucht einen Film in der Film-db nach 1-2 Stichworten
+#     Parms:
+#     SuchBegriffe 1 und 2,
+#     benannte Parameter:
+#         db: Pfad zur sqlite-DB
+#         archiv: Basis-Pfad zum pyhsischen Archiv
+#     Returns:
+#         gibt "None" zurück, wenn keine DB verbunden werden kann
+#         gibt [] zurück, wenn nichts gefunden wurde
+#     '''
+#     import re
+#     global engine, conn, my_session
+#     if not dbconnect(mustExist=True):
+#         print(f"!!! Fehler, die Bank konnte nicht verbunden werden!")
+#         return None
+#     # if '*' in suchbegriff1 or '_' in suchbegriff1 or ' ' in suchbegriff1:
+#         # looking_for = suchbegriff1.replace('_', '?')\
+#         #                     .replace('*', '%')\
+#         #                     .replace('?', '_')\
+#         #                     .replace(' ', '_')
+#     looking_for = suchbegriff1
+#     if ' ' in suchbegriff1:
+#         looking_for = looking_for.replace(' ', '_')
+#     if  '?' in suchbegriff1:
+#         looking_for = looking_for.replace('?', '_')
+#     if  '/' in suchbegriff1:
+#         looking_for = looking_for.replace('/', '_')
+#     if  '\\' in suchbegriff1:
+#         looking_for = looking_for.replace('\\', '_')
+#     if  '*' in suchbegriff1:
+#         looking_for = looking_for.replace('*', '%')
+#     looking_for = '%{0}%'.format(looking_for)
+
+#     print(f"suchbegriff=[{suchbegriff1}], looking_for=[{looking_for}]")   
+
+#     if suchbegriff2 is None or suchbegriff2 == "":
+#         doSuch2 = False
+#     else:
+#         doSuch2 = True        
+#         sb2 = suchbegriff2.replace(" ", "_")
+#         sb2 = sb2.replace("_", "[ _]")        
+    
+#     # print(f"Vor query; parms: ({suchbegriff1}), ({looking_for})")
+
+#     # den 2. Filterbegriff ggf. auswerten
+#     lst = []
+#     flst = getFilmListe(looking_for, archiv=archiv)
+#     for film in flst:
+#         gefunden = True
+#         if doSuch2:
+#             if not re.search(sb2, film.lower()):
+#                 gefunden = False
+#         if gefunden:
+#             anz += 1
+#             lst.append(film)
+#     return lst
+
+def getFilmListe(suchbegriff, archiv=ARCHIV):
     '''
-    sucht einen Film in der Film-db nach 1-2 Stichworten
+    sucht alle Filme in der Film-db nach Stichwort
     Parms:
-    SuchBegriffe 1 und 2,
+    SuchBegriff,
     benannte Parameter:
-        db: Pfad zur sqlite-DB
         archiv: Basis-Pfad zum pyhsischen Archiv
     Returns:
         gibt "None" zurück, wenn keine DB verbunden werden kann
         gibt [] zurück, wenn nichts gefunden wurde
+        gibt eine Liste der gefundenen Filme bei Erfolg zurück
     '''
     import re
     global engine, conn, my_session
     if not dbconnect(mustExist=True):
         print(f"!!! Fehler, die Bank konnte nicht verbunden werden!")
         return None
-    # if '*' in suchbegriff1 or '_' in suchbegriff1 or ' ' in suchbegriff1:
-        # looking_for = suchbegriff1.replace('_', '?')\
-        #                     .replace('*', '%')\
-        #                     .replace('?', '_')\
-        #                     .replace(' ', '_')
-    looking_for = suchbegriff1
-    if ' ' in suchbegriff1:
-        looking_for = looking_for.replace(' ', '_')
-    if  '?' in suchbegriff1:
-        looking_for = looking_for.replace('?', '_')
-    if  '/' in suchbegriff1:
-        looking_for = looking_for.replace('/', '_')
-    if  '\\' in suchbegriff1:
-        looking_for = looking_for.replace('\\', '_')
-    if  '*' in suchbegriff1:
-        looking_for = looking_for.replace('*', '%')
-    looking_for = '%{0}%'.format(looking_for)
-
-    print(f"suchbegriff=[{suchbegriff1}], looking_for=[{looking_for}]")   
-
-    if suchbegriff2 is None or suchbegriff2 == "":
-        doSuch2 = False
-    else:
-        doSuch2 = True        
-        sb2 = suchbegriff2.replace(" ", "_")
-        sb2 = sb2.replace("_", "[ _]")        
     
-    # print(f"Vor query; parms: ({suchbegriff1}), ({looking_for})")
-
     result = my_session.query( vapfad.relPath, 
-                               vainhalt.dateiName, 
-                               vainhalt.dateiExt, 
-                               vainhalt.md5
-                            )\
-                            .join(vapfad)\
-                            .filter(vainhalt.dateiName.ilike(looking_for))\
-                            .order_by(vapfad.relPath)\
-                            .all()
+                            vainhalt.dateiName, 
+                            vainhalt.dateiExt, 
+                            vainhalt.md5
+                        )\
+                        .join(vapfad)\
+                        .filter(vainhalt.dateiName.ilike(suchbegriff))\
+                        .order_by(vapfad.relPath)\
+                        .all()
     anz = 0
     lst = []
     for res in result:
-        gefunden = True
-        if doSuch2:
-            if not re.search(sb2, res.dateiName.lower()):
-                gefunden = False
-        if gefunden:
-            anz += 1
+        anz += 1
+        if sys.platform == "win32":
             pfad = res.relPath.replace("/", "\\")            
-            vid = os.path.join(archiv, pfad, res.dateiName)
-            # created= os.stat(vid).st_ctime
-            lst.append(vid)
+        vid = os.path.join(archiv, pfad, res.dateiName)        
+        lst.append(vid)
     return lst
+
 
 def film_umbenennen(alterName, neuerName):
     # benennt den Film in der DB um und/oder verschiebt ihn in einen anderen Ordner

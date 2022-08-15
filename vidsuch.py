@@ -31,6 +31,11 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             Die Funktion FilmInfo wird durch einen externen Programmaufruf getätigt
 2022-08-01  V7.3.1
             Fehlerbereinigung in vidarchdb.py/findefilm
+2022-08-15  V7.4.0
+            Strukturbereinigung: vidsuch Sachlogik auf vidarchdb.py (findewas) nach vidsuch.py transportiert
+            statt dessen die Funktion getFilmList in vidarchdb.py erzeugt, das eine Menge von Filmnamen zurückliefert
+            Die reine Suchlogik mit suchbegriff1/2 ist nur noch in vidsuch.py enthalten
+
 '''
 
 import sys
@@ -84,8 +89,8 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "7"
-    SUBVERSION = "3.2"
-    VERSIONDATE = "2022-08-13"
+    SUBVERSION = "4.0"
+    VERSIONDATE = "2022-08-15"
     DBNAME = "Y:\\video\\vidarch.db"
     SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
@@ -113,6 +118,7 @@ class Worker(QObject):
         # print("Thread started")
         pass
 
+
     @pyqtSlot(str, str, str)
     def findewas(self, such: str, such2: str, vpath: str):
         ''' 
@@ -130,7 +136,8 @@ class Worker(QObject):
         such2 = such2.lower()
         # print(f"in (findewas), Parms: [{such}], [{such2}]")
 
-        lst = vidarchdb.findeFilm(such, such2, db=Konstanten.DBNAME, archiv=Konstanten.VPATH)
+        # lst = vidarchdb.findeFilm(such, such2, db=Konstanten.DBNAME, archiv=Konstanten.VPATH)
+        lst = self.findeFilm(such, such2, archiv=Konstanten.VPATH)
         # print(f"nach findefilm, Parms: ({such}), ({such2}]), lst=({lst})")
         if lst is None:     # keine Verbindung zur DB        
             such2 = None if such2 == "" else such2.lower()
@@ -175,6 +182,57 @@ class Worker(QObject):
         if not stopFlag:
             self.result.emit(lst)
         return
+
+    def findeFilm(self, suchbegriff1, suchbegriff2, archiv=Konstanten.VPATH):
+        '''
+        sucht einen Film in der Film-db nach 1-2 Stichworten
+        Parms:
+        SuchBegriffe 1 und 2,
+        benannte Parameter:
+            db: Pfad zur sqlite-DB
+            archiv: Basis-Pfad zum pyhsischen Archiv / VPATH
+        Returns:
+            gibt "None" zurück, wenn keine DB verbunden werden kann
+            gibt [] zurück, wenn nichts gefunden wurde
+        '''
+        import re
+        looking_for = suchbegriff1
+        if ' ' in suchbegriff1:
+            looking_for = looking_for.replace(' ', '_')
+        if  '?' in suchbegriff1:
+            looking_for = looking_for.replace('?', '_')
+        if  '/' in suchbegriff1:
+            looking_for = looking_for.replace('/', '_')
+        if  '\\' in suchbegriff1:
+            looking_for = looking_for.replace('\\', '_')
+        if  '*' in suchbegriff1:
+            looking_for = looking_for.replace('*', '%')
+        looking_for = '%{0}%'.format(looking_for)
+
+        # print(f"suchbegriff=[{suchbegriff1}], looking_for=[{looking_for}]")   
+
+        if suchbegriff2 is None or suchbegriff2 == "":
+            doSuch2 = False
+        else:
+            doSuch2 = True        
+            sb2 = suchbegriff2.replace(" ", "_")
+            sb2 = sb2.replace("_", "[ _]")        
+        
+        # print(f"Vor query; parms: ({suchbegriff1}), ({looking_for})")
+
+        # den 2. Filterbegriff ggf. auswerten
+        lst = []
+        anz = 0
+        flst = vidarchdb.getFilmListe(looking_for, archiv=archiv)
+        for film in flst:
+            gefunden = True
+            if doSuch2:
+                if not re.search(sb2, film.lower()):
+                    gefunden = False
+            if gefunden:
+                anz += 1
+                lst.append(film)
+        return lst
 
 
 # --------------------------------------------------------------------------------
