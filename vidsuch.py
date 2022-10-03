@@ -49,7 +49,7 @@ import vidarchdb
 sys.path.append(r".\FilmDetails")
 
 # import PyQt5.QtWidgets # Import the PyQt5 module we'll need
-from PyQt5.QtWidgets import (QMainWindow,
+from PyQt6.QtWidgets import (QMainWindow,
     	                     QDialog,
                              QLabel,
                              QTableWidgetItem,
@@ -62,12 +62,11 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QVBoxLayout,
                              QApplication,
                              QMessageBox,
-                             QInputDialog,
-                             QAction)
-
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, Qt
-from PyQt5.Qt import  QClipboard
-from PyQt5.QtGui import QIcon
+                             QInputDialog
+                             )
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, Qt
+# from QApplication import QClipboard
+from PyQt6.QtGui import QIcon, QAction
 
 from math import log as logarit
 from datetime import datetime
@@ -268,12 +267,12 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         self.lst_erg.setHorizontalHeaderLabels(('Video', 'Länge', 'Datum'))
         self.lst_erg.setAlternatingRowColors(True)
         header = self.lst_erg.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.lst_erg.setSelectionMode(QAbstractItemView.NoSelection)
-        self.lst_erg.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.lst_erg.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.lst_erg.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.lst_erg.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.lst_erg.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.lst_erg.setRowCount(0)
         self.lst_erg.setEnabled(False)
 
@@ -302,7 +301,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         renAct = QAction('Film umbenennen', self.lst_erg, triggered=self.renVideo)
         delAct =  QAction('Film löschen', self.lst_erg, triggered=self.delVideo)
         # Policy zufügen
-        self.lst_erg.setContextMenuPolicy(Qt.ActionsContextMenu)
+        self.lst_erg.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
         # Actions zum Kontextmenü zufügen
         self.lst_erg.addAction(infAct)
         self.lst_erg.addAction(separator)
@@ -337,34 +336,34 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         w = self.focusWidget()
         modifiers = QApplication.keyboardModifiers()
 
-        if event.key() == Qt.Key_F6:
+        if event.key() == Qt.Key.Key_F6:
             if w == self.lst_erg:
                 self.renVideo()
-        elif event.key() == Qt.Key_Delete:
+        elif event.key() == Qt.Key.Key_Delete:
             if w == self.lst_erg:
                 self.delVideo()
-        elif event.key() == Qt.Key_Return:
+        elif event.key() == Qt.Key.Key_Return:
             w = self.focusWidget()
             if w == self.le_such1 or w == self.le_such2:
                 self.suchen()
             else:
                 self.videoStart(self.lst_erg.currentRow, 1)
-        elif event.key() == Qt.Key_F2:
+        elif event.key() == Qt.Key.Key_F2:
             self.videoInfo()
-        elif event.key() == Qt.Key_F4:  # Split Feld 1
+        elif event.key() == Qt.Key.Key_F4:  # Split Feld 1
             self.suchFeldSplit()
-        elif event.key() == Qt.Key_F5:  # Paste, wie ctrl+m
+        elif event.key() == Qt.Key.Key_F5:  # Paste, wie ctrl+m
             self.suchFeldLeer2()
-        elif event.key() == Qt.Key_X:
+        elif event.key() == Qt.Key.Key_X:
             # modifiers = QApplication.keyboardModifiers()
-            if modifiers == Qt.ControlModifier:
+            if modifiers == Qt.KeyboardModifier.ControlModifier:
                 self.suchFeldLeer()
-        elif event.key() == Qt.Key_M:       # ctrl+m, um die Zwischenablage einzufügen
-            if modifiers == Qt.ControlModifier:
+        elif event.key() == Qt.Key.Key_M:       # ctrl+m, um die Zwischenablage einzufügen
+            if modifiers == Qt.KeyboardModifier.ControlModifier:
                 self.suchFeldLeer2()
-        elif event.key() == Qt.Key_S:       # ctrl+s, den Text in dem 1. Suchfeld zu splitten
-            if modifiers == Qt.ControlModifier:
-                self.suchFeldSplit()        
+        elif event.key() == Qt.Key.Key_S:       # ctrl+s, den Text in dem 1. Suchfeld zu splitten
+            if modifiers == Qt.KeyboardModifier.ControlModifier:
+                self.suchFeldSplit()
 
         return
 
@@ -600,7 +599,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
 
     def _runDialog(self, videoName):
         neuerName, ok = QInputDialog.getText(self, 'Film im Prep-Ordner umbenennen', 'Neuer Name:',
-                                             QLineEdit.Normal, videoName)
+                                             QLineEdit.EchoMode.Normal, videoName)
         if not ok:
             return None
         else:
@@ -731,4 +730,4 @@ if __name__ == '__main__':
     app.setStyleSheet(StyleSheet)
     form = VidSuchApp(app)
     form.show()
-    app.exec_()
+    app.exec()

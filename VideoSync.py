@@ -2,6 +2,11 @@
 Synchronisiert die DB 'vidarch.db' mit dem Archiv,
 bestimmt ggf. die md5-Werte der Filme
 rg, 2022-05-29
+
+    # Wenn der Job mit Parameter gestartet wrd, wird nur dieser Ordner geprüft,
+    # ansonsten das gesamter VideoArchiv
+    # z.B. 'VideoSync __in3' prüft nur den Ordner V:\video\__in3
+
 '''
 import vidarchdb
 import os 

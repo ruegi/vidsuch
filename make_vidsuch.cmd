@@ -1,7 +1,7 @@
 set VERSION=
 
 echo Bearbeite VidSuchUI%VERSION%.ui ...
-pyuic5 -x VidSuchUI%VERSION%.ui -o VidSuchUI.py
+pyuic6 -x VidSuchUI%VERSION%.ui -o VidSuchUI.py
 echo %ERRORLEVEL%
 
 if "%1"=="simple" goto Ende
