@@ -35,13 +35,14 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             Strukturbereinigung: vidsuch Sachlogik auf vidarchdb.py (findewas) nach vidsuch.py transportiert
             statt dessen die Funktion getFilmList in vidarchdb.py erzeugt, das eine Menge von Filmnamen zurückliefert
             Die reine Suchlogik mit suchbegriff1/2 ist nur noch in vidsuch.py enthalten
-
+2022-11-29  V7.4.5  
+            Umstellung auf PyQt6 und Fehler in findeWas behoben.
 '''
 
 import sys
 import os
 
-import sqlalchemy
+# import sqlalchemy
 import sqlalchemy.sql.default_comparator        # das braucht pyinstaller zum Finden der Module
 import vidarchdb
 
@@ -88,8 +89,8 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "7"
-    SUBVERSION = "4.0"
-    VERSIONDATE = "2022-08-15"
+    SUBVERSION = "5.0"
+    VERSIONDATE = "2022-11-29"
     DBNAME = "Y:\\video\\vidarch.db"
     SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
@@ -194,7 +195,6 @@ class Worker(QObject):
             gibt "None" zurück, wenn keine DB verbunden werden kann
             gibt [] zurück, wenn nichts gefunden wurde
         '''
-        import re
         looking_for = suchbegriff1
         if ' ' in suchbegriff1:
             looking_for = looking_for.replace(' ', '_')
@@ -210,12 +210,13 @@ class Worker(QObject):
 
         # print(f"suchbegriff=[{suchbegriff1}], looking_for=[{looking_for}]")   
 
-        if suchbegriff2 is None or suchbegriff2 == "":
-            doSuch2 = False
+        if suchbegriff2:
+            sb2 = suchbegriff2
+            doSuch2 = True
         else:
-            doSuch2 = True        
-            sb2 = suchbegriff2.replace(" ", "_")
-            sb2 = sb2.replace("_", "[ _]")        
+            doSuch2 = False
+            # sb2 = suchbegriff2.replace(" ", "_")
+            # sb2 = sb2.replace("_", "[ _]")        
         
         # print(f"Vor query; parms: ({suchbegriff1}), ({looking_for})")
 
@@ -226,13 +227,13 @@ class Worker(QObject):
         for film in flst:
             gefunden = True
             if doSuch2:
-                if not re.search(sb2, film.lower()):
+                if sb2 not in film.lower():
                     gefunden = False
             if gefunden:
                 anz += 1
                 lst.append(film)
-        return lst
-
+        
+        return lst.sort()
 
 # --------------------------------------------------------------------------------
 # VidSuchApp class
@@ -443,9 +444,9 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
     def stop_thread_msg(self):
         reply = QMessageBox.warning(self, "Achtung!",
                                     "Laufende Suche abbrechen?",
-                                    QMessageBox.Yes | QMessageBox.No,
-                                    QMessageBox.No)
-        if reply == QMessageBox.Yes:
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                    QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes.value:
             return True     # Abbrechen!
         else:
             return False    # NICHT Abbrechen!
@@ -541,8 +542,9 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
                                      "Film [{0}] aus dem Archiv löschen?\n\nKeine Panik!\n".format(fname) +
                                      "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
                                          self.vpath + os.sep + self.delBasket),
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                                     QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes.value:
             delVideo = fname
             delTarget = os.path.join(self.vpath, self.delBasket, vidName)
             try:                
@@ -576,7 +578,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         pfad = os.path.dirname(fname)
         neuerName = self._runDialog(vidName)
         # neuerName, ok = QInputDialog.getText(self, 'Film im Prep-Ordner umbenennen', 'Neuer Name:',
-        #                                      QLineEdit.Normal, vidName)
+        #                                      QLineEdit.EcheMode.Normal, vidName)
         if neuerName is None:
             pass
         elif not (neuerName == ''):

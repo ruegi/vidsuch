@@ -5,6 +5,7 @@ build/
 dist/
 FilmDetails.alt5/
 alt/
+*.alt
 .pylintrc
 *.spec
 test/
