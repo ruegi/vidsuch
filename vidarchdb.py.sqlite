@@ -9,7 +9,7 @@ Anderungen:
     1.2     2022-11-29  try except Logik bei den Queries zugefügt
                         für eine bessere Fehlerkontrolle
               aus: https://stackoverflow.com/questions/2136739/error-handling-in-sqlalchemy
-    1.3     2022-12-02  Umstellung auf MySql    
+    
 '''
 
 from sqlalchemy import create_engine
@@ -23,24 +23,17 @@ import os.path
 import hashlib
 import sys
 from sameLinePrint import sameLinePrint
-from privat import DBZugang
 
 DBVERSION = "1.0"
-MODULVERSION = "1.2 vom 2022-12-02"
+MODULVERSION = "1.1 vom 2022-11-27"
 # DBNAME = "vidarch.db"
 # ARCHIV = "v:\\video"
-
+SQLECHO = False
 if sys.platform.lower() == "linux":
     ARCHIV = "/archiv/video"
 else:
     ARCHIV = "y:/video"
-
-# DBNAME = ARCHIV + "/vidarch.db"   # für sqlite nötig
-# mysql DB
-DBNAME = 'mysql://userid:psw@IP-Adr/DBName' # nur, um den Aufbau zu zeigen
-DBNAME = DBZugang.DBNAME
-DBTITEL = "MySql auf Cebulon"
-SQLECHO = False
+DBNAME = ARCHIV + "/vidarch.db"
 
 engine = None
 base = declarative_base()
@@ -103,9 +96,8 @@ class vaconfig(base):
 
 def defineDBName(db: str):
     # setzt den Namen der zu nutzenden DB
-    # jetzt: veraltet
-    # global DBNAME
-    # DBNAME=db
+    global DBNAME
+    DBNAME=db
     return
 
 
@@ -118,36 +110,19 @@ def dbconnect(mustExist=True, SQLECHO=SQLECHO):
     '''
     global DBNAME, engine, conn, my_session
     
+    if mustExist:
+        if not os.path.exists(DBNAME):
+            print(f"DB [{db}] pyhsisch nicht gefunden!")
+            return False
     if engine is None:
-        if DBZugang.DBTyp == "mysql":
-            try:            
-                engine = create_engine(DBNAME, echo=SQLECHO)
-                # , future=True,
-                #                                 connect_args={'check_same_thread': False})
-                conn = engine.connect()
-                my_session = session(bind=engine)   
-                return True
-            except SQLAlchemyError as e:
-                error = str(e.orig)
-                alertApp(f"Exception bei engine connect:\n{error}")
-                return False
-        elif DBZugang.DBTyp == "sqlite":
-            if mustExist:
-                if not os.path.exists(DBNAME):
-                    print(f"DB [{DBNAME}] pyhsisch nicht gefunden!")
-                    return False
-            try:            
-                engine = create_engine('sqlite+pysqlite:///' + DBNAME, echo=SQLECHO, future=True,
-                                            connect_args={'check_same_thread': False})                
-                conn = engine.connect()
-                my_session = session(bind=engine)   
-                return True
-            except SQLAlchemyError as e:
-                error = str(e.orig)
-                alertApp(f"Exception bei engine connect:\n{error}")
-                return False
-        else:
-            alertApp(f"Ungültiger DBTyp {DBZugang.DBTyp} - Abbruch!")
+        try:
+            engine = create_engine('sqlite+pysqlite:///' + DBNAME, echo=SQLECHO, future=True,
+                                            connect_args={'check_same_thread': False})
+            conn = engine.connect()
+            my_session = session(bind=engine)   
+            return True
+        except:
+            print("Exception bei engine/conn/session-Try")
             return False
     else:
         # print("DB OK")
@@ -482,23 +457,15 @@ def film_umbenennen(alterName, neuerName):
         
         if res:
             # Update des Satzes
-            try:
-                res.relPath = zid
-                res.dateiName = ztail
-                my_session.commit()
-            except SQLAlchemyError as e:
-                error = str(e.orig)
-                x = f"Update des DB-Satzes, meldet Fehler: {error}"
-                alertApp(x)
-                return False            
+            res.relPath = zid
+            res.dateiName = ztail
+            my_session.commit()
             return True
         else:
             alert = "FEHLER!\n"
             alert += "-"*70 + "\n"
-            alert += "Die Quelle existiert als Datei,\n"
-            alert += "kann die Quelle in der DB aber nicht finden,\n"
-            alert += " daher keine DB Operation!\n"
-            alert += "-"*70 + "\n"
+            alert += "Die Quelle existiert als Datei, kann sie aber nicht in der DB finden!"
+            alert += "Kann die Quelle nicht finden, daher keine DB Operation!"
             alert += f"alterName: {alterName}\n"
             alert += f"neuerName: {neuerName}\n"
             alert += f"Quelle relPath: {qid}\n"
@@ -522,7 +489,7 @@ def film_umbenennen(alterName, neuerName):
         if res is None:
             return True # Alles OK
         else:
-            alertApp("DB-Fehler! Das Ziel gibt es schon in der DB!")        
+            print("DB-Fehler! Das Ziel gibt es schon in der DB!")        
             return False
 
 def _get_pfad_id(session, pfad):
@@ -566,14 +533,13 @@ def getFilmMD5(relPfad: str, FilmName: str)->str:
         return q.md5
 
 
-def getFilmListe(suchbegriff, archiv=ARCHIV, mitArchiv=True):
+def getFilmListe(suchbegriff, archiv=ARCHIV):
     '''
     sucht alle Filme in der Film-db nach Stich(-teil)wort
     Parms:
     SuchBegriff,
     benannte Parameter:
-        archiv:         Basis-Pfad zum pyhsischen Archiv
-        mitArchiv=True: Bestimmt, ob die Rückgabe mit dem ARCHIV als Präfix erfolgen soll
+        archiv: Basis-Pfad zum pyhsischen Archiv
     Returns:
         gibt "None" zurück, wenn keine DB verbunden werden kann
         gibt [] zurück, wenn nichts gefunden wurde
@@ -606,10 +572,7 @@ def getFilmListe(suchbegriff, archiv=ARCHIV, mitArchiv=True):
         anz += 1
         if sys.platform == "win32":
             pfad = res.relPath.replace("/", "\\")            
-        if mitArchiv:
-            vid = os.path.join(archiv, pfad, res.dateiName)        
-        else:
-            vid = os.path.join(pfad, res.dateiName)
+        vid = os.path.join(archiv, pfad, res.dateiName)        
         lst.append(vid)
     return lst
 

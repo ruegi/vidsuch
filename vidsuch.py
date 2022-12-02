@@ -37,6 +37,8 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             Die reine Suchlogik mit suchbegriff1/2 ist nur noch in vidsuch.py enthalten
 2022-11-29  V7.4.5  
             Umstellung auf PyQt6 und Fehler in findeWas behoben.
+2022-12-02  V7.6.0
+            DB-Anbindung an MySQL statt sqlite
 '''
 
 import sys
@@ -45,6 +47,7 @@ import os
 # import sqlalchemy
 import sqlalchemy.sql.default_comparator        # das braucht pyinstaller zum Finden der Module
 import vidarchdb
+from privat import DBZugang
 
 # das soll die Importe aus dem Ordner FilmDetails mit einschließen...
 sys.path.append(r".\FilmDetails")
@@ -89,9 +92,9 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "7"
-    SUBVERSION = "5.0"
-    VERSIONDATE = "2022-11-29"
-    DBNAME = "Y:\\video\\vidarch.db"
+    SUBVERSION = "6.0"
+    VERSIONDATE = "2022-12-02"
+    DBNAME = DBZugang.DBTitel
     SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
 
@@ -134,9 +137,7 @@ class Worker(QObject):
 
         such = such.lower()
         such2 = such2.lower()
-        # print(f"in (findewas), Parms: [{such}], [{such2}]")
-
-        # lst = vidarchdb.findeFilm(such, such2, db=Konstanten.DBNAME, archiv=Konstanten.VPATH)
+        # print(f"in (findewas), Parms: [{such}], [{such2}]")        
         lst = self.findeFilm(such, such2, archiv=Konstanten.VPATH)
         # print(f"nach findefilm, Parms: ({such}), ({such2}]), lst=({lst})")
         if lst is None:     # keine Verbindung zur DB        
