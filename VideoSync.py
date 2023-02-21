@@ -6,6 +6,9 @@ rg, 2022-05-29
     # Wenn der Job mit Parameter gestartet wrd, wird nur dieser Ordner geprüft,
     # ansonsten das gesamter VideoArchiv
     # z.B. 'VideoSync __in3' prüft nur den Ordner V:\video\__in3
+Änderungen:
+2022-12-03  Protokolliert Löschungen aus der DB in der Datei "DelAusDB.csv"
+            und Umstellung auf mysql
 
 '''
 import vidarchdb
@@ -15,6 +18,7 @@ import hashlib
 from sameLinePrint import sameLinePrint
 import datetime
 import sqlalchemy.sql.default_comparator
+from privat import DBZugang
 
 # from typing import List
 
@@ -24,14 +28,22 @@ COLOR = {
     "BLUE": "\033[94m",
     "GREEN": "\033[92m",
     "RED": "\033[91m",
+    "CYAN": "\x1b[36m",
     "ENDC": "\033[0m",
 }
 
 mitMD5 = False
-vidPfad = "v:\\video"
-version = "1.1 vom 2022-05-30"
+version = "1.2 vom 2022-12-03"
 medienTypen = ['.m4v', '.m2v', '.mpg', '.mp2', '.mp3', '.mp4', '.ogg', '.mkv', '.webm']
-DBNAME="V:\\video\\vidarch.db"
+
+if sys.platform.lower() == "linux":
+    ARCHIV = "/archiv/video"
+else:
+    ARCHIV = "y:/video"
+
+DBNAME=DBZugang.DBNAME
+vidPfad = ARCHIV
+
 
 def make_md5(DateiName):
     '''
@@ -52,6 +64,10 @@ def make_md5(DateiName):
     return md5
 
 def syncDBmitArchiv(startOrdner=vidPfad):
+    '''
+    prüft, ob alle Medien, die im ARCHIV sind, auch in der DB verzeichnet sind
+    und legt sie ggf. an
+    '''
     aktOrdner = ""
     anz = 0
     anzD = 0
@@ -76,7 +92,7 @@ def syncDBmitArchiv(startOrdner=vidPfad):
             relPath = root[len(vidPfad) +1:]
             # print(f"\r{aktOrdner} : {datei}" + " "*80, end="")
             # print(f"Gefunden: {relPath}  -  {datei}" + " "*80)
-            ret = vidarchdb.film_merken(relPath, datei, ext, "", verbose=False )
+            ret = vidarchdb.film_merken(relPath, datei, ext, None, verbose=False )
             sameLinePrint(f"\r{ret}{aktOrdner} : {datei}")
 
             neu = False
@@ -91,21 +107,21 @@ if __name__ == "__main__":
 
     os.system('')   # magic Call to enable ANSi-Seq.
     print("=" * 80)
-    print(COLOR["BLUE"] + 'VideoSync.py' + COLOR["ENDC"] + ' by ruegi,')
-    print(COLOR["BLUE"] + f'Version: {version}' + COLOR["ENDC"])
+    print(COLOR["CYAN"] + 'VideoSync.py' + COLOR["BLUE"] + ' by ruegi,' + COLOR["ENDC"])
+    print(COLOR["CYAN"] + f'Version: {version}' + COLOR["ENDC"])
     
     print("=" * 80)
 
     # print(f"DBNAME={DBNAME}")
 
-    vidarchdb.defineDBName(DBNAME)
-    if not vidarchdb.dbconnect(mustExist=True, SQLECHO=False):
-        print("FEHLER!")
-        print(f"kann die DB {DBNAME} nicht verbinden!")
-        print("Ende ohne Verarbeitung!")
-        exit(0)
-    else:
-        print(f"Verbundene DB: {vidarchdb.engine.url.database}")
+    # vidarchdb.defineDBName(DBNAME)
+    # if not vidarchdb.dbconnect(mustExist=True, SQLECHO=False):
+    #     print("FEHLER!")
+    #     print(f"kann die DB {DBZugang.DBTitel} nicht verbinden!")
+    #     print("Ende ohne Verarbeitung!")
+    #     exit(0)
+    # else:
+    print(f"Verbundene DB: {DBZugang.DBTitel}")
 
     # Wenn der Job mit Parameter gestartet wrd, wird nur dieser Ordner geprüft,
     # ansonsten das gesamter VideoArchiv
@@ -114,7 +130,7 @@ if __name__ == "__main__":
     vPfad = vidPfad
     teilSuche = False
     if len(sys.argv) > 1:
-        # prüfen, ob es diesen Ordner im VideoArchiv gibt
+        # prüfen, ob es diesen Ordner als Ordner existiert
         startord = os.path.join(vidPfad, sys.argv[1])
         if os.path.exists(startord):
             relPfad = sys.argv[1]
@@ -136,7 +152,7 @@ if __name__ == "__main__":
     print("-" * 80)
     print(COLOR["ENDC"])
 
-    ret = vidarchdb.db_scan(Pfad=relPfad)
+    ret = vidarchdb.db_scan(Pfad=relPfad, exportDel="DelfromDB.csv")
     if ret:
         print("\n" + COLOR["RED"] + f"DB-Problem: {ret}" + COLOR["ENDC"])
 

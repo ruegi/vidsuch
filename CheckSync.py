@@ -2,14 +2,17 @@
 Prüft, ob die MD5-Werte aller Filme im übergeben Ordner mit denen in der DB übereinstimmen
 Schreibt zum Ende ein Protokoll aller Fehler nach stdout
 rg, 2022-06-12
+Änderungen:
+2022-12-03  Umstellung auf mysql
 '''
 import vidarchdb
 import os 
 import sys
 import hashlib
 from sameLinePrint import sameLinePrint
-import datetime
-import sqlalchemy.sql.default_comparator
+# import datetime
+# import sqlalchemy.sql.default_comparator
+from privat import DBZugang
 
 # from typing import List
 
@@ -23,10 +26,15 @@ COLOR = {
 }
 
 mitMD5 = False
-vidPfad = "v:\\video"
-version = "0.9 vom 2022-06-12"
+version = "1.0 vom 2022-12-03"
 medienTypen = ['.m4v', '.m2v', '.mpg', '.mp2', '.mp3', '.mp4', '.ogg', '.mkv', '.webm']
-DBNAME="V:\\video\\vidarch.db"
+
+if sys.platform.lower() == "linux":
+    ARCHIV = "/archiv/video"
+else:
+    ARCHIV = "y:/video"
+DBNAME=DBZugang.DBNAME
+vidPfad = ARCHIV
 
 Fehler = []
 
@@ -108,14 +116,14 @@ if __name__ == "__main__":
     
     print("=" * 80)
 
-    vidarchdb.defineDBName(DBNAME)
+    # vidarchdb.defineDBName(DBNAME)
     if not vidarchdb.dbconnect(mustExist=True, SQLECHO=False):
         print("FEHLER!")
-        print(f"kann die DB {DBNAME} nicht verbinden!")
+        print(f"kann die DB {DBZugang.DBTitel} nicht verbinden!")
         print("Ende ohne Verarbeitung!")
         exit(0)
     else:
-        print(f"Verbundene DB: {vidarchdb.engine.url.database}")
+        print(f"Verbundene DB: {DBZugang.DBTitel}")
 
     # Wenn der Job mit Parameter gestartet wrd, wird nur dieser Ordner geprüft,
     # ansonsten das gesamter VideoArchiv

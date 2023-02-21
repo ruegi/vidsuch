@@ -39,6 +39,10 @@ Version 3 : Erweiterung auf Umbenennen und Löschen von Videos
             Umstellung auf PyQt6 und Fehler in findeWas behoben.
 2022-12-02  V7.6.0
             DB-Anbindung an MySQL statt sqlite
+2023-01-03  Behandlung des Fehlers "(2006, 'MySQL server has gone away')", 
+            wenn vidsuch die Nacht über geöffnet war (dann kam es zum harten Absturz)            
+            Lösung: siehe im Modul vidarchdb
+
 '''
 
 import sys
@@ -74,7 +78,10 @@ from PyQt6.QtGui import QIcon, QAction
 
 from math import log as logarit
 from datetime import datetime
-from subprocess import Popen, CREATE_NEW_CONSOLE
+# from subprocess import Popen, CREATE_NEW_CONSOLE
+from subprocess import run as externalRun
+from subprocess import Popen
+
 import time
 
 # from FilmDetails import FilmDetails
@@ -92,10 +99,11 @@ class Konstanten:
     ''' Konstanten für den Programmablauf '''
     VPATH = "Y:\\video\\"
     VERSION = "7"
-    SUBVERSION = "6.0"
-    VERSIONDATE = "2022-12-02"
+    SUBVERSION = "6.1"
+    VERSIONDATE = "2023-01-03"
     DBNAME = DBZugang.DBTitel
-    SYNCDB = 'c:\\Program Files\\VideoSync\\VideoSync.exe'
+    # SYNCDB = ['python.exe', 'c:\\Program Files\\VideoSync\\VideoSync.exe']
+    SYNCDB = ['cmd', '/c', 'py', 'VideoSync.py', '_in6']
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
 
 # --------------------------------------------------------------------------------
@@ -125,7 +133,7 @@ class Worker(QObject):
     @pyqtSlot(str, str, str)
     def findewas(self, such: str, such2: str, vpath: str):
         ''' 
-        Findet Videos nach Stichworten
+        Findet Videos nach Stichworten im Archiv-Ordner
         sucht unabhängig von Groß/klein-schreibung
         enthält der erste suchbegriff "such" eine Blank, so wird auch nach "_" an dieser Stelle gesucht
         :param such:        Suchbegriff 1
@@ -225,6 +233,8 @@ class Worker(QObject):
         lst = []
         anz = 0
         flst = vidarchdb.getFilmListe(looking_for, archiv=archiv)
+        if flst is None:            
+            flst = self.findeFilm(suchbegriff1, suchbegriff2, archiv)
         for film in flst:
             gefunden = True
             if doSuch2:
@@ -600,6 +610,7 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
             pass
         return
 
+
     def _runDialog(self, videoName):
         neuerName, ok = QInputDialog.getText(self, 'Film im Prep-Ordner umbenennen', 'Neuer Name:',
                                              QLineEdit.EchoMode.Normal, videoName)
@@ -607,7 +618,8 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
             return None
         else:
             return neuerName
-        
+
+
     def _getCurrentVideo(self):
         row = self.lst_erg.currentRow()
         if row > self.lst_erg.rowCount():
@@ -615,10 +627,13 @@ class VidSuchApp(QMainWindow, VidSuchUI.Ui_MainWindow):
         vid = self.lst_erg.item(row, 0).text()
         return vid
 
+
     def syncDB(self):
         self.statusMeldung(f"Synkronisation von Archiv und {Konstanten.DBNAME} läuft! Pls stand by...")
-        proc = Popen(Konstanten.SYNCDB, creationflags=CREATE_NEW_CONSOLE)
-        proc.wait()
+        # proc = Popen(Konstanten.SYNCDB, creationflags=CREATE_NEW_CONSOLE)
+        # proc = Popen(Konstanten.SYNCDB, shell=True, creationflags=CREATE_NEW_CONSOLE)
+        proc = externalRun(Konstanten.SYNCDB, shell=True)
+        # proc.wait()
         self.statusMeldung(f"Synkronisation von Archiv und {Konstanten.DBNAME} beendet!")
 
 
@@ -728,7 +743,6 @@ StyleSheet = '''
 # }
 
 if __name__ == '__main__':
-    vidarchdb.defineDBName(Konstanten.DBNAME)
     app = QApplication(sys.argv)
     app.setStyleSheet(StyleSheet)
     form = VidSuchApp(app)
